@@ -1,10 +1,4 @@
-﻿// 1.2.0 Issues:
-
-// Stock decay - Eccentricity problem -- Remove for now? -- No lets work this one out! -- Or maybe not... 1.3.0
-// add RSS realistic active decay -- 1.3.0
-// Multiple resources active at the same time? -- 1.3.0
-
-/*
+﻿/*
  * Whitecat Industries Orbital Decay for Kerbal Space Program. 
  * 
  * Written by Whitecat106 (Marcus Hehir).
@@ -44,7 +38,8 @@ namespace WhitecatIndustries
     {
         private static int currentTab = 0;
         private static string[] tabs = { "Vessels", "Settings" }; 
-        private static Rect windowPosition = new Rect(0, 0, 300, 500);
+        private static Rect windowPosition = new Rect(0, 0, 300, 400);
+        private static Rect subwindowPosition = new Rect(0, 0, 450, 150);
         private static GUIStyle windowStyle = new GUIStyle(HighLogic.Skin.window);
         private static Color tabUnselectedColor = new Color(0.0f, 0.0f, 0.0f);
         private static Color tabSelectedColor = new Color(0.0f, 0.0f, 0.0f);
@@ -55,6 +50,7 @@ namespace WhitecatIndustries
         public static ApplicationLauncherButton ToolbarButton = null;
 
         public static bool Visible = false;
+        public static bool SubVisible = false;
         public static Texture launcher_icon = null;
 
         Vector2 scrollPosition1 = Vector2.zero;
@@ -62,6 +58,8 @@ namespace WhitecatIndustries
         Vector2 scrollPosition3 = Vector2.zero;
         float MultiplierValue = 5.0f;
         float MultiplierValue2 = 5.0f;
+
+        Vessel subwindowVessel = new Vessel();
 
         void Awake()
         {
@@ -94,6 +92,7 @@ namespace WhitecatIndustries
             ApplicationLauncher.Instance.RemoveModApplication(ToolbarButton);
             ToolbarButton = null;
             Visible = false;
+            SubVisible = false;
         }
 
         private void GuiOn()
@@ -104,6 +103,7 @@ namespace WhitecatIndustries
         private void GuiOff()
         {
             Visible = false;
+            SubVisible = false;
         }
 
         public void OnGUI()
@@ -111,6 +111,10 @@ namespace WhitecatIndustries
             if (Visible)
             {
                 windowPosition = GUILayout.Window(id, windowPosition, MainWindow, "Orbital Decay Manager", windowStyle);
+            }
+            if (SubVisible)
+            {
+                subwindowPosition = GUILayout.Window(8989, subwindowPosition, DecayBreakdownWindow, "Orbital Decay Breakdown Display", windowStyle);
             }
         }
 
@@ -168,7 +172,7 @@ namespace WhitecatIndustries
             GUILayout.Label("____________________________________");
             GUILayout.EndVertical();
 
-            scrollPosition1 = GUILayout.BeginScrollView(scrollPosition1, GUILayout.Width(290), GUILayout.Height(480));
+            scrollPosition1 = GUILayout.BeginScrollView(scrollPosition1, GUILayout.Width(290), GUILayout.Height(350));
             bool Realistic = Settings.ReadRD();
             var ClockType = Settings.Read24Hr();
             //151var Resource = Settings.ReadStationKeepingResource();
@@ -237,19 +241,13 @@ namespace WhitecatIndustries
                         double YEDR = DecayManager.DecayRateYarkovskyEffect(vessel);
 
                         GUILayout.Label("Current Total Decay Rate: " + FormatDecayRateToString(TotalDecayRatePerSecond));
-                        //GUILayout.Space(2);
+                        GUILayout.Space(2);
 
-                        //if (GUILayout.Button(ButtonText2)) // Display a new window here?
-                        //{
-                            //GUILayout.Space(2);
-                            //GUILayout.Label("Current Atmospheric Drag Decay Rate: " + FormatDecayRateToString(ADDR));
-                            //GUILayout.Space(2);
-                            //GUILayout.Label("Current Radiation Pressure Decay Rate: " + FormatDecayRateToString(PRDR));
-                            //GUILayout.Space(2);
-                            //GUILayout.Label("Current Gravitational Effect Decay Rate: " + FormatDecayRateToString(GPDR));
-                            //GUILayout.Space(2);
-                            //GUILayout.Label("Current Yarkovsky Effect Decay Rate: " + FormatDecayRateToString(YEDR)); // 1.6.0
-                        //}
+                        if (GUILayout.Button("Toggle Decay Rate Breakdown")) // Display a new window here?
+                        {
+                            subwindowVessel = vessel;
+                            SubVisible = !SubVisible;
+                        }
 
                         GUILayout.Space(2);
 
@@ -500,6 +498,57 @@ namespace WhitecatIndustries
             GUILayout.EndVertical();
         }
 
+        public void DecayBreakdownWindow(int id)
+        {
+            if (GUI.Button(new Rect(subwindowPosition.width - 22, 3, 19, 19), "x"))
+            {
+                if (SubVisible != null)
+                    SubVisible = false;
+            }
+            GUILayout.BeginVertical();
+            GUILayout.Space(10);
+            try
+            {
+
+            Vessel vessel = subwindowVessel;
+            double ADDR = DecayManager.DecayRateAtmosphericDrag(vessel);
+            double GPDR = DecayManager.DecayRateGravitationalPertubation(vessel);
+            double GPIDR = MasConManager.GetSecularIncChange(vessel, vessel.orbitDriver.orbit.LAN, vessel.orbitDriver.orbit.meanAnomaly, vessel.orbitDriver.orbit.argumentOfPeriapsis, vessel.orbitDriver.orbit.eccentricity, vessel.orbitDriver.orbit.inclination, vessel.orbitDriver.orbit.semiMajorAxis, vessel.orbitDriver.orbit.epoch);
+            double GPLANDR = MasConManager.GetSecularLANChange(vessel, vessel.orbitDriver.orbit.LAN, vessel.orbitDriver.orbit.meanAnomaly, vessel.orbitDriver.orbit.argumentOfPeriapsis, vessel.orbitDriver.orbit.eccentricity, vessel.orbitDriver.orbit.inclination, vessel.orbitDriver.orbit.semiMajorAxis, vessel.orbitDriver.orbit.epoch);
+            double PRDR = DecayManager.DecayRateRadiationPressure(vessel);
+            double YEDR = DecayManager.DecayRateYarkovskyEffect(vessel);
+
+            
+                GUILayout.Label("Vessel: " + vessel.GetName());
+                GUILayout.Space(4);
+                GUILayout.Label("Atmospheric Drag Decay Rate (Delta SMA): " + FormatDecayRateToString(ADDR));
+                GUILayout.Space(2);
+                GUILayout.Label("Radiation Pressure Decay Rate (Delta SMA): " + FormatDecayRateToString(PRDR));
+                GUILayout.Space(2);
+                GUILayout.Label("Gravitational Effect Decay Rate (Delta SMA): " + FormatDecayRateToString(GPDR));
+                GUILayout.Space(2);
+                GUILayout.Label("Gravitational Effect Decay Rate (Delta INC): " + FormatDecayRateDegreesToString(GPIDR));
+                GUILayout.Space(2);
+                GUILayout.Label("Gravitational Effect Decay Rate (Delta LAN): " + FormatDecayRateDegreesToString(GPLANDR));
+                GUILayout.Space(2);
+                GUILayout.Label("Yarkovsky Effect Decay Rate (Delta SMA): " + FormatDecayRateSmallToString(YEDR));
+                GUILayout.Space(2);
+                GUILayout.Label("Note: Prediction estimates accurate to +/- 10% per day.");
+            }
+            catch (ArgumentNullException)
+            {
+                GUILayout.Label("WARNING: Error detected, this is a MasCon issue, this will not effect gameplay.");
+                GUILayout.Space(2);
+                GUILayout.Label("Please make a note of your vessel latitude and longitude and reference body and post in the Orbital Decay Forum.");
+                GUILayout.Space(2);
+                GUILayout.Label("Thanks, Whitecat106");
+            }
+            GUILayout.EndVertical();
+            GUI.DragWindow();
+            windowPosition.x = Mathf.Clamp(windowPosition.x, 0f, Screen.width - windowPosition.width);
+            windowPosition.y = Mathf.Clamp(windowPosition.y, 0f, Screen.height - windowPosition.height);
+        }
+
         public string FormatDecayRateToString(double DecayRate)
         {
             double TimewarpRate = 0;
@@ -578,6 +627,214 @@ namespace WhitecatIndustries
                 else if (DecayRatePerYear < 0.01 && DecayRatePerYear >= 0.001)
                 {
                     DecayRateString = (DecayRatePerYear * 100).ToString("F1") + "mm per year.";
+                }
+
+                else
+                {
+                    DecayRateString = "Negligible.";
+                }
+            }
+
+
+            return DecayRateString;
+        }
+
+        public string FormatDecayRateSmallToString(double DecayRate)
+        {
+            double TimewarpRate = 0;
+
+            DecayRate = Math.Abs(DecayRate);
+
+            if (TimeWarp.CurrentRate == 0)
+            {
+                TimewarpRate = 1;
+            }
+            else
+            {
+                TimewarpRate = TimeWarp.CurrentRate;
+            }
+
+            DecayRate = DecayRate / TimewarpRate;
+            string DecayRateString = "";
+            double SecondsInYear = 0.0;
+            double HoursInDay = 0.0;
+
+            bool KerbinTime = GameSettings.KERBIN_TIME;
+
+            if (KerbinTime)
+            {
+                SecondsInYear = 9203545;
+                HoursInDay = 6;
+            }
+            else
+            {
+                SecondsInYear = 31557600;
+                HoursInDay = 24;
+            }
+
+            double DecayRatePerDay = DecayRate * 60 * 60 * HoursInDay;
+            double DecayRatePerYear = DecayRate * SecondsInYear;
+
+            // Daily Rates //
+
+            if (DecayRatePerDay > 1000.0)
+            {
+                DecayRateString = (DecayRatePerDay / 1000.0).ToString("F1") + "Km per day.";
+            }
+
+            else if (DecayRatePerDay <= 1000.0 && DecayRatePerDay >= 1.0)
+            {
+                DecayRateString = (DecayRatePerDay).ToString("F1") + "m per day.";
+            }
+
+            else if (DecayRatePerDay < 1.0 && DecayRatePerDay >= 0.01)
+            {
+                DecayRateString = (DecayRatePerDay * 10).ToString("F1") + "cm per day.";
+            }
+
+            else if (DecayRatePerDay < 0.01 && DecayRatePerDay >= 0.001)
+            {
+                DecayRateString = (DecayRatePerDay * 100).ToString("F1") + "mm per day.";
+            }
+
+            else if (DecayRatePerDay < 0.001)
+            {
+                if (DecayRatePerYear > 1.0)
+                {
+                    DecayRateString = (DecayRatePerYear / 1000.0).ToString("F1") + "m per year.";
+                }
+
+                else if (DecayRatePerYear <= 1.0 && DecayRatePerYear >= 0.01)
+                {
+                    DecayRateString = (DecayRatePerYear).ToString("F1") + "m per year.";
+                }
+
+                else if (DecayRatePerYear < 0.01 && DecayRatePerYear >= 0.001)
+                {
+                    DecayRateString = (DecayRatePerYear * 10).ToString("F1") + "cm per year.";
+                }
+
+                else if (DecayRatePerYear < 0.001 && DecayRatePerYear >= 0.0001)
+                {
+                    DecayRateString = (DecayRatePerYear * 100).ToString("F1") + "µm per year.";
+                }
+
+                else if (DecayRatePerYear < 0.0001 && DecayRatePerYear >= 0.0000001)
+                {
+                    DecayRateString = (DecayRatePerYear * 100).ToString("F1") + "nm per year.";
+                }
+
+                else if (DecayRatePerYear < 0.0000001 && DecayRatePerYear >= 0.0000000001)
+                {
+                    DecayRateString = (DecayRatePerYear * 100).ToString("F1") + "pm per year.";
+                }
+
+                else if (DecayRatePerYear < 0.0000000001 && DecayRatePerYear >= 0.0000000000001)
+                {
+                    DecayRateString = (DecayRatePerYear * 100).ToString("F1") + "fm per year.";
+                }
+
+                else if (DecayRatePerYear < 0.0000000000001 && DecayRatePerYear >= 0.0000000000000001)
+                {
+                    DecayRateString = (DecayRatePerYear * 100).ToString("F1") + "am per year.";
+                }
+
+                else if (DecayRatePerYear < 0.0000000000000001 && DecayRatePerYear >= 0.0000000000000000001)
+                {
+                    DecayRateString = (DecayRatePerYear * 100).ToString("F1") + "zm per year.";
+                }
+
+                else if (DecayRatePerYear < 0.0000000000000000001 && DecayRatePerYear >= 0.0000000000000000000001)
+                {
+                    DecayRateString = (DecayRatePerYear * 100).ToString("F1") + "ym per year.";
+                }
+
+                else
+                {
+                    DecayRateString = "< 1.0 yocto-meter per year.";
+                }
+            }
+            return DecayRateString;
+        }
+
+        public string FormatDecayRateDegreesToString(double DecayRate)
+        {
+            double TimewarpRate = 0;
+
+            DecayRate = Math.Abs(DecayRate);
+
+            if (TimeWarp.CurrentRate == 0)
+            {
+                TimewarpRate = 1;
+            }
+            else
+            {
+                TimewarpRate = TimeWarp.CurrentRate;
+            }
+
+            DecayRate = DecayRate / TimewarpRate;
+            string DecayRateString = "";
+            double SecondsInYear = 0.0;
+            double HoursInDay = 0.0;
+
+            bool KerbinTime = GameSettings.KERBIN_TIME;
+
+            if (KerbinTime)
+            {
+                SecondsInYear = 9203545;
+                HoursInDay = 6;
+            }
+            else
+            {
+                SecondsInYear = 31557600;
+                HoursInDay = 24;
+            }
+
+            double DecayRatePerDay = DecayRate * 60 * 60 * HoursInDay;
+            double DecayRatePerYear = DecayRate * SecondsInYear;
+
+            // Daily Rates //
+
+            if (DecayRatePerDay > 360.0)
+            {
+                DecayRateString = ("Vessel too close to a Mass Concentration.");
+            }
+
+            else if (DecayRatePerDay <= 360.0 && DecayRatePerDay >= 1.0)
+            {
+                DecayRateString = (DecayRatePerDay).ToString("F1") + "degrees per day.";
+            }
+
+            else if (DecayRatePerDay < 1.0 && DecayRatePerDay >= (1.0/60.0))
+            {
+                DecayRateString = (DecayRatePerDay * 10).ToString("F1") + "arc-minutes per day.";
+            }
+
+            else if (DecayRatePerDay < (1.0/60.0) && DecayRatePerDay >= ((1.0/60.0)/60.0))
+            {
+                DecayRateString = (DecayRatePerDay * 100).ToString("F1") + "arc-seconds per day.";
+            }
+
+            else if (DecayRatePerDay < ((1.0/60.0)/60.0))
+            {
+                if (DecayRatePerYear > 360.0)
+                {
+                    DecayRateString = ("Vessel too close to a Mass Concentration.");
+                }
+
+                else if (DecayRatePerYear <= 360.0 && DecayRatePerYear >= 1.0)
+                {
+                    DecayRateString = (DecayRatePerYear).ToString("F1") + "degrees per year.";
+                }
+
+                else if (DecayRatePerYear < 1.0 && DecayRatePerYear >= (1.0/60.0))
+                {
+                    DecayRateString = (DecayRatePerYear * 60).ToString("F1") + "arc-minutes per year.";
+                }
+
+                else if (DecayRatePerYear < (1.0/60.0) && DecayRatePerYear >= ((1.0/60.0)/60.0))
+                {
+                    DecayRateString = (DecayRatePerYear * 60 * 60).ToString("F1") + "arc-seconds per year.";
                 }
 
                 else

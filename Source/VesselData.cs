@@ -1,4 +1,5 @@
-﻿/*
+
+/*
  * Whitecat Industries Orbital Decay for Kerbal Space Program. 
  * 
  * Written by Whitecat106 (Marcus Hehir).
