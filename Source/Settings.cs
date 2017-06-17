@@ -36,17 +36,30 @@ namespace WhitecatIndustries
     [KSPAddon(KSPAddon.Startup.EveryScene,false)]
     public class Settings : MonoBehaviour
     {
-        public static string FilePath = KSPUtil.ApplicationRootPath + "GameData/WhitecatIndustries/Orbital Decay/PluginData/Settings.cfg";
+        public static string FilePath = KSPUtil.ApplicationRootPath + "GameData/WhitecatIndustries/Orbital Decay/Plugins/PluginData/Settings.cfg";
         public static ConfigNode SettingData = new ConfigNode();
         public static ConfigNode settings = ConfigNode.Load(FilePath);
 
         public void Start()
         {
+            CheckStockSettings();
+
             SettingData.ClearData();
             settings = ConfigNode.Load(FilePath);
             foreach (ConfigNode item in settings.nodes)
             {
                 SettingData.AddNode(item);
+            }
+        }
+
+        public void CheckStockSettings() // 1.6.0 Stock give me back my decaying orbits!!
+        {
+            if (HighLogic.LoadedSceneIsGame)
+            {
+                if (GameSettings.ORBIT_DRIFT_COMPENSATION == true)
+                {
+                    GameSettings.ORBIT_DRIFT_COMPENSATION = false;
+                }
             }
         }
 
@@ -62,6 +75,36 @@ namespace WhitecatIndustries
             ConfigNode SimSet = Data.GetNode("SIMULATION");
             SimSet.SetValue("RealisticDecay", RD.ToString());   
         }
+
+        public static void WriteNBody(bool NB) // 1.6.0 NBody
+        {
+                ConfigNode Data = SettingData;
+                ConfigNode SimSet = Data.GetNode("SIMULATION");
+                SimSet.SetValue("NBodySimulation", NB.ToString());
+        }
+
+        public static void WriteNBodyConics(bool NBC) // 1.6.0 NBody
+        {
+            ConfigNode Data = SettingData;
+            ConfigNode SimSet = Data.GetNode("SIMULATION");
+            SimSet.SetValue("NBodySimulationConics", NBC.ToString());
+        }
+
+        public static void WriteNBodyConicsPatches(double NBCC) // 1.6.0 NBody
+        {
+            ConfigNode Data = SettingData;
+            ConfigNode SimSet = Data.GetNode("SIMULATION");
+            SimSet.SetValue("NBodySimulationConicsPatches", NBCC.ToString());
+        }
+
+        public static void WriteNBodyBodyUpdating(bool NBB) // 1.6.0 NBody
+        {
+            ConfigNode Data = SettingData;
+            ConfigNode SimSet = Data.GetNode("SIMULATION");
+            SimSet.SetValue("NBodySimulationBodyUpdating", NBB.ToString());
+        }
+
+
         public static void Write24H(bool H24)
         {
             ConfigNode Data = SettingData;
@@ -106,6 +149,38 @@ namespace WhitecatIndustries
             ConfigNode SimSet = Data.GetNode("SIMULATION");
             bool RD = bool.Parse(SimSet.GetValue("RealisticDecay"));
             return RD;
+        }
+
+        public static bool ReadNB() // 1.6.0 NBody
+        {
+            ConfigNode Data = SettingData;
+            ConfigNode SimSet = Data.GetNode("SIMULATION");
+            bool NB = bool.Parse(SimSet.GetValue("NBodySimulation"));
+            return NB;
+        }
+
+        public static bool ReadNBC() // 1.6.0 NBody Conics
+        {
+            ConfigNode Data = SettingData;
+            ConfigNode SimSet = Data.GetNode("SIMULATION");
+            bool NBC = bool.Parse(SimSet.GetValue("NBodySimulationConics"));
+            return NBC;
+        }
+
+        public static double ReadNBCC() // 1.6.0 NBody Conics
+        {
+            ConfigNode Data = SettingData;
+            ConfigNode SimSet = Data.GetNode("SIMULATION");
+            double NBCC = double.Parse(SimSet.GetValue("NBodySimulationConicsPatches"));
+            return NBCC;
+        }
+
+        public static bool ReadNBB() // 1.6.0 NBody bodies
+        {
+            ConfigNode Data = SettingData;
+            ConfigNode SimSet = Data.GetNode("SIMULATION");
+            bool NBCC = bool.Parse(SimSet.GetValue("NBodySimulationBodyUpdating"));
+            return NBCC;
         }
 
         public static bool Read24Hr()

@@ -34,7 +34,7 @@ namespace WhitecatIndustries
 {
     public class MasConData : MonoBehaviour
     {
-        public static string FilePath = KSPUtil.ApplicationRootPath + "GameData/WhitecatIndustries/Orbital Decay/PluginData/MasConData.cfg";
+        public static string FilePath = KSPUtil.ApplicationRootPath + "GameData/WhitecatIndustries/Orbital Decay/Plugins/PluginData/MasConData.cfg";
         public static ConfigNode GMSData;
 
         public static void LoadData()
@@ -247,7 +247,7 @@ namespace WhitecatIndustries
             var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
             var Vesseldistance = R * c;
 
-            GalAtDistance = (Math.Abs(CentreGal) / Edgedistance) * Vesseldistance; // Work out negative push mascons for 1.6.0 
+            GalAtDistance = (Math.Abs(CentreGal) / Edgedistance) * Vesseldistance; // Work out negative push mascons for 1.6.0 removed absolute CentreGal
 
             /*
             double GravitationalConstant = 6.67408 * Math.Pow(10.0, -11.0); // G [Newton Meter Squared per Square Kilograms] 

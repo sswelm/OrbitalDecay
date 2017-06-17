@@ -1,4 +1,29 @@
-﻿using System;
+﻿/*
+ * Whitecat Industries Orbital Decay for Kerbal Space Program. 
+ * 
+ * Written by Whitecat106 (Marcus Hehir).
+ * 
+ * Kerbal Space Program is Copyright (C) 2013 Squad. See http://kerbalspaceprogram.com/. This
+ * project is in no way associated with nor endorsed by Squad.
+ * 
+ * This code is licensed under the Attribution-NonCommercial-ShareAlike 3.0 (CC BY-NC-SA 3.0)
+ * creative commons license. See <http://creativecommons.org/licenses/by-nc-sa/3.0/legalcode>
+ * for full details.
+ * 
+ * Attribution — You are free to modify this code, so long as you mention that the resulting
+ * work is based upon or adapted from this code.
+ * 
+ * Non-commercial - You may not use this work for commercial purposes.
+ * 
+ * Share Alike — If you alter, transform, or build upon this work, you may distribute the
+ * resulting work only under the same or similar license to the CC BY-NC-SA 3.0 license.
+ * 
+ * Note that Whitecat Industries is a ficticious entity created for entertainment
+ * purposes. It is in no way meant to represent a real entity. Any similarity to a real entity
+ * is purely coincidental.
+ */
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -32,7 +57,7 @@ namespace WhitecatIndustries
         [KSPEvent(active = true, guiActive = true, guiName = "Enable Station Keeping")]
         public void ToggleSK()
         {
-            VesselData.UpdateStationKeeping(this.vessel, !stationKeepData.IsStationKeeping);
+            VesselData.UpdateStationKeeping(this.vessel, VesselData.FetchStationKeeping(vessel));
             stationKeepData.IsStationKeeping = !stationKeepData.IsStationKeeping;
             updatedisplayedData();
            
@@ -154,7 +179,7 @@ namespace WhitecatIndustries
             }
             else
             {
-                proplist.Add("NONE");
+                proplist.Add("No Resoures Available");
                 amountlist.Add(0);
                 ratiolist.Add(0);
                 stationKeepData.ISP = 0;
@@ -189,7 +214,7 @@ namespace WhitecatIndustries
                 engineIsListed = false;
                 foreach (ConfigNode engineNode in EngineData.GetNodes())
                 {
-                    if (engineNode.GetValue("name") == module.part.name)//ugly names used - can't find way to get editor part names 
+                    if (engineNode.GetValue("name") == module.part.protoPartSnapshot.partInfo.title)//ugly names used - can't find way to get editor part names 
                     {
                         engineIsListed = true;
                         break;
@@ -200,7 +225,7 @@ namespace WhitecatIndustries
                 if (module.EngineIgnited && !engineIsListed)
                 {
                     ConfigNode engineNode = new ConfigNode("ENGINE");
-                    engineNode.AddValue("name", module.part.name);//ugly names used - can't find way to get editor part names
+                    engineNode.AddValue("name", module.part.protoPartSnapshot.partInfo.title);//ugly names used - can't find way to get editor part names
                     engineNode.AddValue("ISP", module.atmosphereCurve.Evaluate(0).ToString());
 
                     foreach (Propellant propellant in module.propellants)
@@ -208,6 +233,7 @@ namespace WhitecatIndustries
                         if (propellant.name != "ElectricCharge")
                         {
                             ConfigNode propellantNode = new ConfigNode("PROPELLANT");
+                            //amount = module.part.Resources.Get(propellant.id).amount;
                             amount = fetchPartResource(module.part, propellant.id, ResourceFlowMode.STAGE_PRIORITY_FLOW);
                             propellantNode.AddValue("name", propellant.name);
                             propellantNode.AddValue("id", propellant.id.ToString());
@@ -225,7 +251,7 @@ namespace WhitecatIndustries
                 engineIsListed = false;
                 foreach (ConfigNode engineNode in EngineData.GetNodes())
                 {
-                    if (engineNode.GetValue("name") == module.part.name)
+                    if (engineNode.GetValue("name") == module.part.protoPartSnapshot.partInfo.title)
                     {
                         engineIsListed = true;
                         break;
@@ -235,13 +261,15 @@ namespace WhitecatIndustries
                 if (module.rcsEnabled && !engineIsListed)
                 {
                     ConfigNode engineNode = new ConfigNode("ENGINE");
-                    engineNode.AddValue("name", module.part.name);
+                    engineNode.AddValue("name", module.part.protoPartSnapshot.partInfo.title);
                     engineNode.AddValue("ISP", module.atmosphereCurve.Evaluate(0).ToString());
                     foreach (Propellant propellant in module.propellants)
                     {
                         if (propellant.name != "ElectricCharge")
                         {
                             ConfigNode propellantNode = new ConfigNode("PROPELLANT");
+                            //amount = module.part.Resources.Get(propellant.id).amount
+                            //amount =
                             amount = fetchPartResource(module.part, propellant.id, ResourceFlowMode.STAGE_PRIORITY_FLOW);
                             propellantNode.AddValue("name", propellant.name.ToString());
                             propellantNode.AddValue("id", propellant.id.ToString());
@@ -281,7 +309,7 @@ namespace WhitecatIndustries
                 }
                 else
                 {
-                    EngineList = new string[] { "NONE AVAILABLE" };
+                    EngineList = new string[] { "None Available" };
                 }
                 updatedisplayedData();
 
@@ -320,20 +348,15 @@ namespace WhitecatIndustries
             }
         }
      
-           
-
-
-        
-
-       
-
 
         private double fetchPartResource(Part part,int Id,ResourceFlowMode flowMode)
         {
 
             double amount = 0;
+            double MaxAmount = 0;
             List<PartResource> Resources = new List<PartResource>();
-            part.GetConnectedResources(Id, flowMode , Resources);
+            
+            part.GetConnectedResourceTotals(Id, out amount, out MaxAmount);
 
             if (Resources.Count > 0)
             {
@@ -344,7 +367,7 @@ namespace WhitecatIndustries
             }
             return amount;
         }
-
+        
        
             
       
