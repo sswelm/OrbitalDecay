@@ -53,7 +53,7 @@ namespace WhitecatIndustries
         
         private float UPTInterval = 1.0f;
         private float lastUpdate = 0.0f;
-
+       
         [KSPEvent(active = true, guiActive = true, guiName = "Enable Station Keeping")]
         public void ToggleSK()
         {
@@ -65,23 +65,29 @@ namespace WhitecatIndustries
         [KSPEvent(active = true, guiActive = true, guiName = "Next engine")]
         public void NextEngine()
         {
-            EngineIndex++;
-            if (EngineIndex >= EngineList.Count())
+            if (EngineList.Count() > 0)
             {
-                EngineIndex = 0;
+                EngineIndex++;
+                if (EngineIndex >= EngineList.Count())
+                {
+                    EngineIndex = 0;
+                }
+                updatedisplayedData();
             }
-            updatedisplayedData();
         }
 
         [KSPEvent(active = true, guiActive = true, guiName = "Previous engine")]
         public void PreviousEngine()
         {
-            EngineIndex--;
-            if (EngineIndex <= 0)
+            if (EngineList.Count() > 0)
             {
-                EngineIndex = EngineList.Count()-1;
+                EngineIndex--;
+                if (EngineIndex <= 0)
+                {
+                    EngineIndex = EngineList.Count() - 1;
+                }
+                updatedisplayedData();
             }
-            updatedisplayedData();
         }
 
 
@@ -94,20 +100,24 @@ namespace WhitecatIndustries
                 stationKeepData = new StationKeepData();
 
             }
+            
+
         }
 
         public override void OnStart(StartState state)
         {
-/*
-            BaseField field = this.Fields["ODSKengine"];
-            field.guiActive = stationKeepData.IsStationKeeping;
-            field = this.Fields["StationKeepResources"];
-            field.guiActive = stationKeepData.IsStationKeeping;
-            field = this.Fields["amounts"];
-            field.guiActive = stationKeepData.IsStationKeeping;
-            field = this.Fields["ISP"];
-            field.guiActive = stationKeepData.IsStationKeeping;
-            */
+            /*
+                        BaseField field = this.Fields["ODSKengine"];
+                        field.guiActive = stationKeepData.IsStationKeeping;
+                        field = this.Fields["StationKeepResources"];
+                        field.guiActive = stationKeepData.IsStationKeeping;
+                        field = this.Fields["amounts"];
+                        field.guiActive = stationKeepData.IsStationKeeping;
+                        field = this.Fields["ISP"];
+                        field.guiActive = stationKeepData.IsStationKeeping;
+                        */
+           
+
             BaseEvent even = this.Events["ToggleSK"];
             if (stationKeepData.IsStationKeeping)
             {
@@ -118,9 +128,11 @@ namespace WhitecatIndustries
             {
                 even.guiName = "Enable Station Keeping";
             }
+
           
         }
 
+        
         public void updatedisplayedData()
         {
 
@@ -284,8 +296,8 @@ namespace WhitecatIndustries
             }
         }
 
-         
 
+        
         public override void OnUpdate()
         {
 
@@ -294,7 +306,7 @@ namespace WhitecatIndustries
             {
                 lastUpdate = Time.time;
                 fetchEngineData();
-                //BaseField field = this.Fields["ODSKengine"];
+                
 
 
                 List<string> namelist = new List<string>();
@@ -312,8 +324,7 @@ namespace WhitecatIndustries
                     EngineList = new string[] { "None Available" };
                 }
                 updatedisplayedData();
-
-
+            
 
 
                 for (int i = 0; i< stationKeepData.resources.Count() ; i++) 
@@ -390,6 +401,8 @@ namespace WhitecatIndustries
         public float[] ratios = { 0 };
         [SerializeField]
         public float ISP = 0;
+        [SerializeField]
+        public double Area = 0;
 
         public void Load(ConfigNode node)
         {

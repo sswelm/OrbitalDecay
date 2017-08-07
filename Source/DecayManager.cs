@@ -157,6 +157,7 @@ namespace WhitecatIndustries
             VesselData.OnQuickLoad(); // 1.5.3 Fixes
 
             VesselData.VesselInformation.ClearNodes();
+            print("WhitecatIndustries - Orbital Decay - Vessel Information lost OnQuickLoadUpdate");
             string FilePath = KSPUtil.ApplicationRootPath + "GameData/WhitecatIndustries/Orbital Decay/Plugins/PluginData/VesselData.cfg";
             ConfigNode FileM = new ConfigNode();
             ConfigNode FileN = new ConfigNode("VESSEL");
@@ -172,6 +173,7 @@ namespace WhitecatIndustries
         public void ClearVesselOnDestroy(Vessel vessel)
         {
             VesselData.ClearVesselData(vessel);
+            print("Vessel destroyed:" + vessel.GetName());
         }
         #endregion
 
@@ -848,8 +850,8 @@ namespace WhitecatIndustries
             CelestialBody body = orbit.referenceBody;
 
                 double GravitationalConstant = 6.67408 * Math.Pow(10.0, -11.0); // G [Newton Meter Squared per Square Kilogram]
-                double ForceAtSurface = (GravitationalConstant * vessel.GetTotalMass() * vessel.orbitDriver.orbit.referenceBody.Mass);
-                double ForceAtDistance = (GravitationalConstant * vessel.GetTotalMass() * vessel.orbitDriver.orbit.referenceBody.Mass) / (Math.Pow(vessel.orbitDriver.orbit.altitude, 2.0));
+                double ForceAtSurface = (GravitationalConstant * VesselData.FetchMass(vessel) * vessel.orbitDriver.orbit.referenceBody.Mass);
+                double ForceAtDistance = (GravitationalConstant * VesselData.FetchMass(vessel) * vessel.orbitDriver.orbit.referenceBody.Mass) / (Math.Pow(vessel.orbitDriver.orbit.altitude, 2.0));
                 if (ForceAtDistance > (0.0000000000001 * ForceAtSurface)) // Stops distant laggy pertubations
                 {
                     if (TimeWarp.CurrentRate < 100)
@@ -1004,6 +1006,7 @@ namespace WhitecatIndustries
                             MessageDisplayed.Remove(vessel);
                         }
                         VesselData.ClearVesselData(vessel);
+                        print("WhitecatIndustries - Orbital Decay - Vessel died");
                         vessel.Die();
                     }
                     VesselDied = false;
@@ -1028,7 +1031,7 @@ namespace WhitecatIndustries
                 CalculatedFinalVelocity = newOrbit.getOrbitalVelocityAtUT(ReadTime).magnitude;
 
                 double DeltaVelocity = InitialVelocity - CalculatedFinalVelocity;
-                double decayForce = DeltaVelocity * (vessel.GetTotalMass() * 1000);
+                double decayForce = DeltaVelocity * (VesselData.FetchMass(vessel) * 1000);
                 GameObject thisVessel = new GameObject();
 
                 if (TimeWarp.CurrentRate == 0 || (TimeWarp.CurrentRate > 0 && TimeWarp.WarpMode == TimeWarp.Modes.LOW))
@@ -1082,7 +1085,7 @@ namespace WhitecatIndustries
             double NewSemiMajorAxis = (VesselData.FetchSMA(vessel) - DecayValue);
             CalculatedFinalVelocity = newOrbit.getOrbitalVelocityAtUT(ReadTime).magnitude;
             double DeltaVelocity = InitialVelocity - CalculatedFinalVelocity;
-            double decayForce = DeltaVelocity * (vessel.GetTotalMass() /1000.0);
+            double decayForce = DeltaVelocity * (VesselData.FetchMass(vessel) /1000.0);
             GameObject thisVessel = new GameObject();
 
             if (TimeWarp.CurrentRate == 0 || (TimeWarp.CurrentRate > 0 && TimeWarp.WarpMode == TimeWarp.Modes.LOW))
@@ -1300,8 +1303,8 @@ namespace WhitecatIndustries
             double DecayRate = 0.0;
 
             double GravitationalConstant = 6.67408 * Math.Pow(10.0, -11.0); // G [Newton Meter Squared per Square Kilogram]
-            double ForceAtSurface = (GravitationalConstant * vessel.GetTotalMass() * vessel.orbitDriver.orbit.referenceBody.Mass);
-            double ForceAtDistance = (GravitationalConstant * vessel.GetTotalMass() * vessel.orbitDriver.orbit.referenceBody.Mass) / (Math.Pow(vessel.orbitDriver.orbit.altitude, 2.0));
+            double ForceAtSurface = (GravitationalConstant * VesselData.FetchMass(vessel) * vessel.orbitDriver.orbit.referenceBody.Mass);
+            double ForceAtDistance = (GravitationalConstant * VesselData.FetchMass(vessel) * vessel.orbitDriver.orbit.referenceBody.Mass) / (Math.Pow(vessel.orbitDriver.orbit.altitude, 2.0));
             if (ForceAtDistance > (0.0000000000001 * ForceAtSurface)) // Stops distant laggy pertubations
             {
                 if (vessel.isActiveVessel)

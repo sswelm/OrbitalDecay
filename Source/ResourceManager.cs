@@ -74,9 +74,10 @@ namespace WhitecatIndustries
         {
             string ResourceNames = "No Resources Available";
             if (vessel == FlightGlobals.ActiveVessel)
-            {
-                List<ModuleOrbitalDecay> modlist = vessel.FindPartModulesImplementing<ModuleOrbitalDecay>();
-                ResourceNames = modlist.ElementAt(0).StationKeepResources;
+            { 
+                    List<ModuleOrbitalDecay> modlist = vessel.FindPartModulesImplementing<ModuleOrbitalDecay>();
+                    if (modlist.Count > 0)
+                        ResourceNames = modlist.ElementAt(0).StationKeepResources;
             }
             else
             {
@@ -103,8 +104,11 @@ namespace WhitecatIndustries
             float ResourceRatio = 0;
             if (vessel == FlightGlobals.ActiveVessel)
             {
-                List<ModuleOrbitalDecay> modlist = vessel.FindPartModulesImplementing<ModuleOrbitalDecay>();
-                ResourceRatio = modlist.ElementAt(0).stationKeepData.ratios[index];
+               
+                    List<ModuleOrbitalDecay> modlist = vessel.FindPartModulesImplementing<ModuleOrbitalDecay>();
+                    if(modlist.Count > 0 )
+                        ResourceRatio = modlist.ElementAt(0).stationKeepData.ratios[index];
+               
             }
             else
             {

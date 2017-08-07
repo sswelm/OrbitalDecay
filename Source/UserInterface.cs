@@ -206,6 +206,20 @@ namespace WhitecatIndustries
             }
 
             GUILayout.Space(3);
+            if (GUILayout.Button(GameDatabase.Instance.GetTexture("Squad/PartList/SimpleIcons/R&D_node_icon_advunmanned", false)))
+            {
+                if (FilterTypes.Contains(VesselType.Relay))
+                {
+                    FilterTypes.Remove(VesselType.Relay);
+                }
+
+                else
+                {
+                    FilterTypes.Add(VesselType.Relay);
+                }
+            }
+
+            GUILayout.Space(3);
 
             if (GUILayout.Button(GameDatabase.Instance.GetTexture("Squad/PartList/SimpleIcons/RDicon_commandmodules", false)))
             {
@@ -333,7 +347,10 @@ namespace WhitecatIndustries
                         }
 
                         GUILayout.BeginVertical();
+                     //   GUILayout.Label("Vessels count" + VesselData.VesselInformation.CountNodes.ToString());
                         GUILayout.Label("Vessel Name: " + vessel.vesselName);
+                    //    GUILayout.Label("Vessel Area: " + VesselData.FetchArea(vessel).ToString());
+                    //    GUILayout.Label("Vessel Mass: " + VesselData.FetchMass(vessel).ToString());
                         GUILayout.Space(2);
                         GUILayout.Label("Orbiting Body: " + vessel.orbitDriver.orbit.referenceBody.GetName());
                         GUILayout.Space(2);
@@ -738,7 +755,7 @@ namespace WhitecatIndustries
         {
             if (GUI.Button(new Rect(DecayBreakdownwindowPosition.width - 22, 3, 19, 19), "x"))
             {
-                if (DecayBreakdownVisible != null)
+                if (DecayBreakdownVisible != false)
                     DecayBreakdownVisible = false;
             }
             GUILayout.BeginVertical();

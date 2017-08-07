@@ -197,7 +197,7 @@ namespace WhitecatIndustries
             GUILayout.BeginHorizontal();
 
             Dictionary<string, double> ResourceQuantites = new Dictionary<string, double>();
-            double tempHold = 0;
+         //   double tempHold = 0;
 
             foreach (Part part in EditorLogic.SortedShipList)
             { 
