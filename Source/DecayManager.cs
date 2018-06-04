@@ -26,7 +26,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Expansions.Missions.Editor;
 using UnityEngine;
 
 namespace WhitecatIndustries.Source
@@ -989,9 +988,8 @@ namespace WhitecatIndustries.Source
 
             else if (TimeWarp.CurrentRate > 0 && TimeWarp.WarpMode == TimeWarp.Modes.HIGH) // 1.3.0 Timewarp Fix
             {
-                bool multipleLoadedSceneVessels = false; // 1.4.0 Debris warp fix
-                multipleLoadedSceneVessels = CheckVesselProximity(vessel);
-
+                // 1.4.0 Debris warp fix
+                bool multipleLoadedSceneVessels = CheckVesselProximity(vessel);
                 if (multipleLoadedSceneVessels) return;
                 if (vessel.vesselType == VesselType.EVA) return;
                 VesselData.UpdateVesselSMA(vessel, VesselData.FetchSMA(vessel) - decayValue);
@@ -1005,16 +1003,13 @@ namespace WhitecatIndustries.Source
 
         public static double DecayRateRadiationPressure(Vessel vessel)
         {
-            double decayRate = 0.0;
             CelestialBody body = vessel.orbitDriver.orbit.referenceBody;
             double solarEnergy = Math.Pow(3.86 * 10.0, 26.0); // W
-            double solarDistance = 0.0;
-            solarDistance = vessel.orbitDriver.orbit.referenceBody == Sun.Instance.sun ? 
+            double solarDistance = vessel.orbitDriver.orbit.referenceBody == Sun.Instance.sun ? 
                 vessel.orbitDriver.orbit.altitude : 
                 vessel.orbitDriver.orbit.referenceBody.orbit.altitude;
 
-            double solarConstant = 0.0;
-            solarConstant = solarEnergy / (4.0 * Math.PI * Math.Pow(solarDistance, 2.0)); // W/m^2
+            double solarConstant = solarEnergy / (4.0 * Math.PI * Math.Pow(solarDistance, 2.0));
             double initialSemiMajorAxis = VesselData.FetchSMA(vessel);
             double standardGravitationalParameter = body.gravParameter;
             double meanAngularVelocity = Math.Sqrt(standardGravitationalParameter / Math.Pow(initialSemiMajorAxis, 3.0));
@@ -1038,7 +1033,7 @@ namespace WhitecatIndustries.Source
 
             double decayRateModifier = 0.0;
             decayRateModifier = Settings.ReadDecayDifficulty();
-            decayRate = changeInSemiMajorAxis * TimeWarp.CurrentRate * decayRateModifier;
+            double decayRate = changeInSemiMajorAxis * TimeWarp.CurrentRate * decayRateModifier;
 
             return decayRate;
         }
@@ -1101,8 +1096,7 @@ namespace WhitecatIndustries.Source
                 double finalPeriod = initialPeriod - deltaPeriod;
                 double finalSemiMajorAxis = Math.Pow(Math.Pow(finalPeriod / (2.0 * Math.PI), 2.0) * standardGravitationalParameter, 1.0 / 3.0);
 
-                double decayRateModifier = 0.0;
-                decayRateModifier = Settings.ReadDecayDifficulty();
+                double decayRateModifier = Settings.ReadDecayDifficulty();
 
                 decayRate = (initialSemiMajorAxis - finalSemiMajorAxis) * TimeWarp.CurrentRate * decayRateModifier;
             }
@@ -1151,8 +1145,7 @@ namespace WhitecatIndustries.Source
                 double finalPeriod = initialPeriod - deltaPeriod;
                 double finalSemiMajorAxis = Math.Pow(Math.Pow(finalPeriod / (2.0 * Math.PI), 2.0) * standardGravitationalParameter, 1.0 / 3.0);
 
-                double decayRateModifier = 0.0;
-                decayRateModifier = Settings.ReadDecayDifficulty();
+                double decayRateModifier = Settings.ReadDecayDifficulty();
 
                 decayRate = (initialSemiMajorAxis - finalSemiMajorAxis) * TimeWarp.CurrentRate * decayRateModifier;
             }
@@ -1249,8 +1242,7 @@ namespace WhitecatIndustries.Source
             double immobileAccelleration = Math.PI * (vesselRadius * vesselRadius) * solarConstant / (vesselMass * speedOfLight * (solarDistance * solarDistance));
             double changeInSemiMajorAxis = -(6.0 * Math.PI * immobileAccelleration * initialSemiMajorAxis) / (meanAngularVelocity * speedOfLight);
 
-            double decayRateModifier = 0.0;
-            decayRateModifier = Settings.ReadDecayDifficulty();
+            double decayRateModifier = Settings.ReadDecayDifficulty();
             double decayRate = changeInSemiMajorAxis * decayRateModifier;
 
             return decayRate;
@@ -1309,8 +1301,7 @@ namespace WhitecatIndustries.Source
                 double finalPeriod = initialPeriod - deltaPeriod;
                 double finalSemiMajorAxis = Math.Pow(Math.Pow(finalPeriod / (2.0 * Math.PI), 2.0) * standardGravitationalParameter, 1.0 / 3.0);
 
-                double decayRateModifier = 0.0;
-                decayRateModifier = Settings.ReadDecayDifficulty();
+                double decayRateModifier = Settings.ReadDecayDifficulty();
 
                 decayRate = (initialSemiMajorAxis - finalSemiMajorAxis) * TimeWarp.CurrentRate * decayRateModifier;
             }
@@ -1342,7 +1333,7 @@ namespace WhitecatIndustries.Source
                     vesselArea = 5.0;
                 }
 
-                double vesselMass = mass; ;   // Kg
+                double vesselMass = mass; // Kg
                 if (vesselMass == 0)
                 {
                     vesselMass = 1000.0; // Default is 100kg
@@ -1356,8 +1347,7 @@ namespace WhitecatIndustries.Source
                 double finalPeriod = initialPeriod - deltaPeriod;
                 double finalSemiMajorAxis = Math.Pow(Math.Pow(finalPeriod / (2.0 * Math.PI), 2.0) * standardGravitationalParameter, 1.0 / 3.0);
 
-                double decayRateModifier = 0.0;
-                decayRateModifier = Settings.ReadDecayDifficulty();
+                double decayRateModifier = Settings.ReadDecayDifficulty();
 
                 decayRate = (initialSemiMajorAxis - finalSemiMajorAxis) * TimeWarp.CurrentRate * decayRateModifier;
             }
@@ -1373,7 +1363,6 @@ namespace WhitecatIndustries.Source
 
         public static double DecayTimePredictionExponentialsVariables(Vessel vessel)
         {
-            double daysUntilDecay = 0;
             double initialSemiMajorAxis = VesselData.FetchSMA(vessel);
             Orbit orbit = vessel.GetOrbitDriver().orbit;
             CelestialBody body = vessel.orbitDriver.orbit.referenceBody;
@@ -1426,14 +1415,13 @@ namespace WhitecatIndustries.Source
             double time1 = initialPeriod / (60.0 * 60.0) / 4.0 * Math.PI * ((2.0 * beta * equivalentAltitude + 1.0) / (atmosphericDensity * (beta * beta) * (equivalentAltitude * equivalentAltitude * equivalentAltitude)));
             double time2 = time1 * (vesselMass / (2.2 * vesselArea)) * (1 - Math.Pow(Math.E, beta * (baseAltitude - (equivalentAltitude - body.Radius) / 1000)));
 
-            daysUntilDecay = time2;
+            double daysUntilDecay = time2;
 
             return daysUntilDecay;
         } // 1.4.0
 
         public static double DecayTimePredictionEditor(double area, double mass, double sma, double eccentricity, CelestialBody body)
         {
-            double daysUntilDecay = 0;
             double initialSemiMajorAxis = sma;
 
             double initialPeriod = Math.PI * 2.0 * Math.Sqrt(initialSemiMajorAxis * initialSemiMajorAxis * initialSemiMajorAxis / body.gravParameter);
@@ -1485,17 +1473,15 @@ namespace WhitecatIndustries.Source
             double time1 = initialPeriod / (60.0 * 60.0) / 4.0 * Math.PI * ((2.0 * beta * equivalentAltitude + 1.0) / (atmosphericDensity * (beta * beta) * (equivalentAltitude * equivalentAltitude * equivalentAltitude)));
             double time2 = time1 * (vesselMass / (2.2 * vesselArea)) * (1 - Math.Pow(Math.E, beta * (baseAltitude - (equivalentAltitude - body.Radius) / 1000)));
 
-            daysUntilDecay = time2;
+            double daysUntilDecay = time2;
 
             return daysUntilDecay;
         }
 
         public static double DecayTimePredictionLinearVariables(Vessel vessel)
         {
-            double decayTimeInSeconds = 0.0;
-
-            double decayRateVariables = Math.Abs(DecayManager.DecayRateRadiationPressure(vessel)) + Math.Abs(DecayManager.DecayRateYarkovskyEffect(vessel)); //+ Math.Abs(DecayRateGravitationalPertubation(vessel));
-            double timewarpRate = 0;
+            double decayRateVariables = Math.Abs(DecayRateRadiationPressure(vessel)) + Math.Abs(DecayRateYarkovskyEffect(vessel)); //+ Math.Abs(DecayRateGravitationalPertubation(vessel));
+            double timewarpRate;
             if (TimeWarp.CurrentRate == 0)
             {
                 timewarpRate = 1;
@@ -1504,9 +1490,8 @@ namespace WhitecatIndustries.Source
             {
                 timewarpRate = TimeWarp.CurrentRate;
             }
-            double timeUntilImpact = Math.Abs((VesselData.FetchSMA(vessel) - vessel.orbitDriver.orbit.referenceBody.Radius) / (decayRateVariables/timewarpRate));
-            decayTimeInSeconds = timeUntilImpact;
-            return decayTimeInSeconds;
+            // Time Until Impact
+            return Math.Abs((VesselData.FetchSMA(vessel) - vessel.orbitDriver.orbit.referenceBody.Radius) / (decayRateVariables/timewarpRate));
         }
 
         #endregion

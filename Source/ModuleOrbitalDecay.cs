@@ -33,33 +33,33 @@ namespace WhitecatIndustries.Source
     public class ModuleOrbitalDecay : PartModule
     {
 
-        [KSPField(isPersistant = false , guiActive = true, guiActiveEditor = false, guiName = "Use")]
+        [KSPField(isPersistant = false, guiActive = true, guiActiveEditor = false, guiName = "Use")]
         public string ODSKengine = "";
         [KSPField(isPersistant = false, guiActive = true, guiName = "Resources")]
         public string StationKeepResources;
         [KSPField(isPersistant = false, guiActive = true, guiName = "Available")]
         public string amounts;
-        [KSPField(isPersistant = false, guiActive = true, guiName = "ISP" )]
+        [KSPField(isPersistant = false, guiActive = true, guiName = "ISP")]
         public float ISP;
         [KSPField(isPersistant = true, guiActive = false)]
         public int EngineIndex;
 
         [KSPField(isPersistant = true)]
         public StationKeepData stationKeepData;
-        
+
         public ConfigNode EngineData = new ConfigNode();
         public string[] EngineList = { "" };
-        
+
         private float UPTInterval = 1.0f;
         private float lastUpdate;
-       
+
         [KSPEvent(active = true, guiActive = true, guiName = "Enable Station Keeping")]
         public void ToggleSK()
         {
-            VesselData.UpdateStationKeeping(this.vessel, VesselData.FetchStationKeeping(vessel));
+            VesselData.UpdateStationKeeping(vessel, VesselData.FetchStationKeeping(vessel));
             stationKeepData.IsStationKeeping = !stationKeepData.IsStationKeeping;
             updatedisplayedData();
-           
+
         }
         [KSPEvent(active = true, guiActive = true, guiName = "Next engine")]
         public void NextEngine()
@@ -99,7 +99,7 @@ namespace WhitecatIndustries.Source
                 stationKeepData = new StationKeepData();
 
             }
-            
+
 
         }
 
@@ -115,9 +115,9 @@ namespace WhitecatIndustries.Source
                         field = this.Fields["ISP"];
                         field.guiActive = stationKeepData.IsStationKeeping;
                         */
-           
 
-            BaseEvent even = this.Events["ToggleSK"];
+
+            BaseEvent even = Events["ToggleSK"];
             if (stationKeepData.IsStationKeeping)
             {
                 even.guiName = "Disable Station Keeping";
@@ -128,10 +128,10 @@ namespace WhitecatIndustries.Source
                 even.guiName = "Enable Station Keeping";
             }
 
-          
+
         }
 
-        
+
         public void updatedisplayedData()
         {
 
@@ -141,15 +141,8 @@ namespace WhitecatIndustries.Source
                 module.EngineIndex = EngineIndex;
             }
 
-            BaseEvent even = this.Events["ToggleSK"];
-            if (stationKeepData.IsStationKeeping)
-            {
-                even.guiName = "Disable Station Keeping";
-            }
-            else
-            {
-                even.guiName = "Enable Station Keeping";
-            }
+            BaseEvent even = Events["ToggleSK"];
+            even.guiName = stationKeepData.IsStationKeeping ? "Disable Station Keeping" : "Enable Station Keeping";
             if (vessel.situation == Vessel.Situations.ORBITING || vessel.situation == Vessel.Situations.SUB_ORBITAL)
             {
                 even.guiActive = true;
@@ -204,33 +197,26 @@ namespace WhitecatIndustries.Source
             stationKeepData.ratios = ratiolist.ToArray();
 
 
-            lastUpdate = Time.time-UPTInterval;
+            lastUpdate = Time.time - UPTInterval;
 
-            if (EngineIndex < EngineList.Count())
-            {
-                ODSKengine = EngineList[EngineIndex];
-            }
-            else ODSKengine = EngineList[EngineList.Count()-1];
+            ODSKengine = EngineIndex < EngineList.Length ? EngineList[EngineIndex] : EngineList[EngineList.Length - 1];
 
         }
 
-        public void fetchEngineData()
+        public void FetchEngineData()
         {
-
             double amount = 0;
-            bool engineIsListed = false;
+            bool engineIsListed;
             EngineData.RemoveNodes("ENGINE");
             foreach (ModuleEngines module in vessel.FindPartModulesImplementing<ModuleEngines>())
             {
                 engineIsListed = false;
                 foreach (ConfigNode engineNode in EngineData.GetNodes())
                 {
-                    if (engineNode.GetValue("name") == module.part.protoPartSnapshot.partInfo.title)//ugly names used - can't find way to get editor part names 
-                    {
-                        engineIsListed = true;
-                        break;
-                    }
-
+                    //ugly names used - can't find way to get editor part names
+                    if (engineNode.GetValue("name") != module.part.protoPartSnapshot.partInfo.title) continue;
+                    engineIsListed = true;
+                    break;
                 }
 
                 if (module.EngineIgnited && !engineIsListed)
@@ -241,19 +227,20 @@ namespace WhitecatIndustries.Source
 
                     foreach (Propellant propellant in module.propellants)
                     {
-                        if (propellant.name != "ElectricCharge")
-                        {
-                            ConfigNode propellantNode = new ConfigNode("PROPELLANT");
-                            //amount = module.part.Resources.Get(propellant.id).amount;
-                            amount = fetchPartResource(module.part, propellant.id, ResourceFlowMode.STAGE_PRIORITY_FLOW);
-                            propellantNode.AddValue("name", propellant.name);
-                            propellantNode.AddValue("id", propellant.id.ToString());
-                            propellantNode.AddValue("ratio", propellant.ratio.ToString());
-                            propellantNode.AddValue("Available", amount.ToString());
-                            engineNode.AddNode(propellantNode);
-                        }
+                        if (propellant.name == "ElectricCharge") continue;
+                        ConfigNode propellantNode = new ConfigNode("PROPELLANT");
+                        //amount = module.part.Resources.Get(propellant.id).amount;
+                        amount = fetchPartResource(module.part, propellant.id, ResourceFlowMode.STAGE_PRIORITY_FLOW);
+                        propellantNode.AddValue("name", propellant.name);
+                        propellantNode.AddValue("id", propellant.id.ToString());
+                        propellantNode.AddValue("ratio", propellant.ratio.ToString());
+                        propellantNode.AddValue("Available", amount.ToString());
+                        engineNode.AddNode(propellantNode);
                     }
                     EngineData.AddNode(engineNode);
+                    if (!stationKeepData.IsStationKeeping || !(module.currentThrottle > 0.0)) continue;
+                    ScreenMessages.PostScreenMessage("Warning: Vessel is under thrust, station keeping disabled.");
+                    VesselData.UpdateStationKeeping(vessel, false);
                 }
             }
 
@@ -262,79 +249,79 @@ namespace WhitecatIndustries.Source
                 engineIsListed = false;
                 foreach (ConfigNode engineNode in EngineData.GetNodes())
                 {
-                    if (engineNode.GetValue("name") == module.part.protoPartSnapshot.partInfo.title)
-                    {
-                        engineIsListed = true;
-                        break;
-                    }
+                    if (engineNode.GetValue("name") != module.part.protoPartSnapshot.partInfo.title) continue;
+                    engineIsListed = true;
+                    break;
 
                 }
-                if (module.rcsEnabled && !engineIsListed)
+
+                if (!module.rcsEnabled || engineIsListed) continue;
+                ConfigNode newEngineNode = new ConfigNode("ENGINE");
+                newEngineNode.AddValue("name", module.part.protoPartSnapshot.partInfo.title);
+                newEngineNode.AddValue("ISP", module.atmosphereCurve.Evaluate(0).ToString());
+                foreach (Propellant propellant in module.propellants)
                 {
-                    ConfigNode engineNode = new ConfigNode("ENGINE");
-                    engineNode.AddValue("name", module.part.protoPartSnapshot.partInfo.title);
-                    engineNode.AddValue("ISP", module.atmosphereCurve.Evaluate(0).ToString());
-                    foreach (Propellant propellant in module.propellants)
-                    {
-                        if (propellant.name != "ElectricCharge")
-                        {
-                            ConfigNode propellantNode = new ConfigNode("PROPELLANT");
-                            //amount = module.part.Resources.Get(propellant.id).amount
-                            //amount =
-                            amount = fetchPartResource(module.part, propellant.id, ResourceFlowMode.STAGE_PRIORITY_FLOW);
-                            propellantNode.AddValue("name", propellant.name.ToString());
-                            propellantNode.AddValue("id", propellant.id.ToString());
-                            propellantNode.AddValue("ratio", propellant.ratio.ToString());
-                            propellantNode.AddValue("Available", amount.ToString());
-                            engineNode.AddNode(propellantNode);
-                        }
-                    }
-
-                    EngineData.AddNode(engineNode);
+                    if (propellant.name == "ElectricCharge") continue;
+                    ConfigNode newPropellantNode = new ConfigNode("PROPELLANT");
+                    //amount = module.part.Resources.Get(propellant.id).amount
+                    //amount =
+                    amount = fetchPartResource(module.part, propellant.id, ResourceFlowMode.STAGE_PRIORITY_FLOW);
+                    newPropellantNode.AddValue("name", propellant.name);
+                    newPropellantNode.AddValue("id", propellant.id.ToString());
+                    newPropellantNode.AddValue("ratio", propellant.ratio.ToString());
+                    newPropellantNode.AddValue("Available", amount.ToString());
+                    newEngineNode.AddNode(newPropellantNode);
                 }
+                EngineData.AddNode(newEngineNode);
             }
         }
 
 
-        
+
         public override void OnUpdate()
         {
 
-            
-            if (Time.time - lastUpdate > UPTInterval)
+
+            if (stationKeepData.IsStationKeeping && vessel == FlightGlobals.ActiveVessel)
             {
-                lastUpdate = Time.time;
-                fetchEngineData();
-                
-
-
-                List<string> namelist = new List<string>();
-                if (EngineData.HasNode("ENGINE"))
-                    {
-                    foreach (ConfigNode engine in EngineData.GetNodes("ENGINE"))
-                    {
-                        namelist.Add(engine.GetValue("name"));
-                    }
-                    EngineList = new string[namelist.Count];
-                    EngineList = namelist.ToArray();
-                }
-                else
+                foreach (ModuleEngines module in vessel.FindPartModulesImplementing<ModuleEngines>())
                 {
-                    EngineList = new string[] { "None Available" };
+                    if (!(module.currentThrottle > 0)) continue;
+                    ScreenMessages.PostScreenMessage("Warning: Vessel is under thrust, station keeping disabled.");
+                    VesselData.UpdateStationKeeping(vessel, false);
+                    break;
                 }
-                updatedisplayedData();
-            
+            }
 
+            if (!(Time.time - lastUpdate > UPTInterval)) return;
+            lastUpdate = Time.time;
+            FetchEngineData();
 
-                for (int i = 0; i< stationKeepData.resources.Count() ; i++) 
+            List<string> namelist = new List<string>();
+            if (EngineData.HasNode("ENGINE"))
+            {
+                foreach (ConfigNode engine in EngineData.GetNodes("ENGINE"))
                 {
-                    float ratio1 = 10 * stationKeepData.ratios[i];
-                    for (int j = 0; j < stationKeepData.resources.Count(); j++) 
-                    {
-                        float ratio2 = 10 * stationKeepData.ratios[j];
-                        if (stationKeepData.amounts[i] /ratio1 < stationKeepData.amounts[j]/ ratio2)
-                            stationKeepData.amounts[j] = stationKeepData.amounts[i] / ratio1 * ratio2;
-                        /*equalizing fuel amount to comply with consumption ratios
+                    namelist.Add(engine.GetValue("name"));
+                }
+                EngineList = new string[namelist.Count];
+                EngineList = namelist.ToArray();
+            }
+            else
+            {
+                EngineList = new string[] { "None Available" };
+            }
+            updatedisplayedData();
+
+            for (int i = 0; i < stationKeepData.resources.Count(); i++)
+            {
+                float ratio1 = 10 * stationKeepData.ratios[i];
+                for (int j = 0; j < stationKeepData.resources.Count(); j++)
+                {
+                    float ratio2 = 10 * stationKeepData.ratios[j];
+                    if (stationKeepData.amounts[i] / ratio1 < stationKeepData.amounts[j] / ratio2)
+                        stationKeepData.amounts[j] = stationKeepData.amounts[i] / ratio1 * ratio2;
+                    /*equalizing fuel amount to comply with consumption ratios
                          * without mutliplying ratios by 10 result is acurate only to 4th position after digital point 
                          * or 7th position in total for huge amounts of fuel
                          * 179.999991330234 instead of 180 - tremendous error, i know ;)
@@ -342,45 +329,39 @@ namespace WhitecatIndustries.Source
                          * bu multiplying ratios seems to be only working solution
                          * its a math issue/limitation encountered in multiple compilers
                          * *************************************************************/
-                    }
-                }
-
-                StationKeepResources = "";
-                amounts = "";
-                ISP = stationKeepData.ISP;
-                StationKeepResources += stationKeepData.resources[0];
-                amounts += stationKeepData.amounts[0].ToString("F3");
-                for (int i = 1; i < stationKeepData.resources.Count(); i++)
-                {
-                    StationKeepResources += ' ' +stationKeepData.resources[i];
-                    amounts += ' '+ stationKeepData.amounts[i].ToString("F3");
                 }
             }
-        }
-     
 
-        private double fetchPartResource(Part part,int Id,ResourceFlowMode flowMode)
-        {
-
-            double amount = 0;
-            double MaxAmount = 0;
-            List<PartResource> Resources = new List<PartResource>();
-            
-            part.GetConnectedResourceTotals(Id, out amount, out MaxAmount);
-
-            if (Resources.Count > 0)
+            StationKeepResources = "";
+            amounts = "";
+            ISP = stationKeepData.ISP;
+            StationKeepResources += stationKeepData.resources[0];
+            amounts += stationKeepData.amounts[0].ToString("F3");
+            for (int i = 1; i < stationKeepData.resources.Count(); i++)
             {
-                foreach (PartResource Res in Resources)
-                {
-                    amount += Res.amount;
-                }
+                StationKeepResources += ' ' + stationKeepData.resources[i];
+                amounts += ' ' + stationKeepData.amounts[i].ToString("F3");
+            }
+        }
+
+
+        private static double fetchPartResource(Part part, int Id, ResourceFlowMode flowMode)
+        {
+            List<PartResource> Resources = new List<PartResource>();
+
+            part.GetConnectedResourceTotals(Id, out double amount, out double MaxAmount);
+
+            if (Resources.Count <= 0) return amount;
+            foreach (PartResource Res in Resources)
+            {
+                amount += Res.amount;
             }
             return amount;
         }
-        
-       
-            
-      
+
+
+
+
 
     }
     [Serializable]
@@ -389,7 +370,7 @@ namespace WhitecatIndustries.Source
         [SerializeField]
         public bool IsStationKeeping;
         [SerializeField]
-        public string engine =  "" ;
+        public string engine = "";
         [SerializeField]
         public string[] resources = { "" };
         [SerializeField]
@@ -421,7 +402,7 @@ namespace WhitecatIndustries.Source
             if (node.HasValue("amounts"))
             {
                 int i = 0;
-                
+
                 amounts = new double[node.GetValue("amounts").Split(' ').Count()];
                 foreach (string str in node.GetValue("amounts").Split(' '))
                 {
@@ -469,8 +450,7 @@ namespace WhitecatIndustries.Source
 
         public void Save(ConfigNode node)
         {
-            string temporary;
-            temporary = resources[0];
+            string temporary = resources[0];
             for (int i = 1; i < resources.Count(); i++)
             {
                 temporary += ' ' + resources[i];
@@ -497,11 +477,7 @@ namespace WhitecatIndustries.Source
 
             node.AddValue("IsStationKeeping", IsStationKeeping);
         }
-
-
     }
-
-
 }
 
 

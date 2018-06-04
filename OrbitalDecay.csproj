@@ -66,15 +66,17 @@
     <Compile Include="Source\YarkovskyEffect.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Distribution\ChangeLog.txt" />
+    <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\ChangeLog.txt" />
     <Content Include="Distribution\OrbitalDecay1.6.0%28NbodyTests%29.dll" />
     <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\Icon\IconToolbar.png" />
     <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\License.txt" />
     <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\plugins\OrbitalDecay.dll" />
-    <Content Include="Distribution\ReleaseNotes.txt" />
-    <Content Include="Distribution\GameData\WhitecatIndustries\SCS\Changelog.txt" />
-    <Content Include="Distribution\GameData\WhitecatIndustries\SCS\Icons\Icon.png" />
-    <Content Include="Distribution\GameData\WhitecatIndustries\SCS\SCS.dll" />
+    <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\ReleaseNotes.txt" />
+    <Content Include="LocalDev\7za_dir.txt" />
+    <Content Include="LocalDev\dist_dir.txt" />
+    <Content Include="LocalDev\ksp_dir.txt" />
+    <Content Include="LocalDev\mono_exe.txt" />
+    <Content Include="LocalDev\pdb2mdb_exe.txt" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
@@ -83,11 +85,69 @@
     <None Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\plugins\PluginData\MasConData.cfg" />
     <None Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\plugins\PluginData\Settings.cfg" />
     <None Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\plugins\PluginData\VesselData.cfg" />
-    <None Include="Distribution\GameData\WhitecatIndustries\SCS\Plugins\PluginData\Data.cfg" />
     <None Include="READ BEFORE UPLOADING" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSHARP.Targets" />
   <ProjectExtensions>
     <VisualStudio AllowExistingFolder="true" />
   </ProjectExtensions>
+  <PropertyGroup>
+    <PostBuildEvent>echo $(Targetname) Post build:
+echo -----------------------------
+echo $(Targetname) Post Build start
+echo ...
+@echo $(Targetname)
+@echo ...
+@echo set lpath vars from LocalDev storage...
+set /p KSP_DIR=&lt;"$(ProjectDir)LocalDev\ksp_dir.txt"
+set /p PDB2MDB_EXE=&lt;"$(ProjectDir)LocalDev\pdb2mdb_exe.txt"
+set /p ZA_DIR=&lt;"$(ProjectDir)LocalDev\7za_dir.txt"
+set /p DIST_DIR=&lt;"$(ProjectDir)LocalDev\dist_dir.txt"
+
+@echo distributing $(Targetname) files...
+copy /Y "$(TargetPath)" "$(ProjectDir)Distribution\GameData\WhitecatIndustries\$(Targetname)\Plugins\"
+xcopy /E /Y "$(ProjectDir)Distribution\GameData\WhitecatIndustries\$(Targetname)" "%25KSP_DIR%25\GameData\WhitecatIndustries\$(Targetname)"
+
+@echo building $(Targetname).dll.mdb file...
+cd "$(TargetDir)"
+call "%25PDB2MDB_EXE%25" $(Targetname).dll
+
+xcopy /E /Y "$(TargetDir)$(Targetname).dll.mdb" "%25KSP_DIR%25\GameData\WhitecatIndustries\$(Targetname)\Plugins\"
+
+@echo packaging files...
+rem if exist "D:\KSP\Mods\PJS\Releases\$(Targetname)\Build\$(Targetname)*.zip" del "D:\KSP\Mods\PJS\Releases\$(Targetname)\Build\$(Targetname)*.zip"
+call "%25ZA_DIR%25\7za.exe" a -tzip -r  "%25DIST_DIR%25\$(Targetname).@(VersionNumber)_%25DATE:~4,2%25%25DATE:~7,2%25%25DATE:~10,4%25.zip" "$(ProjectDir)Distribution\*.*"
+
+@echo Deploy $(Targetname) Distribution files to test env:  %25KSP_DIR%25\WhitecatIndustries\GameData...
+xcopy /E /Y "$(SolutionDir)$(ProjectName)\Distribution\GameData" "%25KSP_DIR%25\WhitecatIndustries\GameData"
+copy /Y "$(TargetDir)$(Targetname).pdb" "%25KSP_DIR%25\GameData\WhitecatIndustries\$(Targetname)\Plugins\"
+
+echo ...
+@echo Build/deploy complete!</PostBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PreBuildEvent>
+    </PreBuildEvent>
+  </PropertyGroup>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+  <Target Name="PostBuildMacros">
+    <GetAssemblyIdentity AssemblyFiles="$(TargetPath)">
+      <Output TaskParameter="Assemblies" ItemName="Targets" />
+    </GetAssemblyIdentity>
+    <ItemGroup>
+      <VersionNumber Include="@(Targets->'%(Version)')" />
+    </ItemGroup>
+  </Target>
+  <PropertyGroup>
+    <PostBuildEventDependsOn>
+    $(PostBuildEventDependsOn);
+    PostBuildMacros;
+  </PostBuildEventDependsOn>
+  </PropertyGroup>
 </Project>

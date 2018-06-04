@@ -1,0 +1,49 @@
+﻿OrbitalDecay Change Log
+
+Version 1.6.1
+ - Mod Adopted by Papa_Joe  
+    See post: https://forum.kerbalspaceprogram.com/index.php?/topic/116818-113-orbital-decay-v152-17072016-total-overhaul/&do=findComment&comment=3392354
+ - Recompiled for KSP 1.4.  Revised versioning to reflect incorporation of 1.6.0 features
+ - Refactored Project to enable automated build and deployment  Removed redundant files
+ - Refactored code to improve style, remove reduntant/dirty code, improve performance
+ - Added fixes by Maeyanie since KSP 1.3.1 version released by ZAJC3W.
+ - Added date stamp to release file
+ - Corrected numerous equality checks that were assignments instead.  (may see different behavior or bugs disapper as a result)
+ - Added OrbitalDecay.version file to enable support for KSP-AVC
+ - Split SolarCycleSimulator out of distribution.  It is a required dependency, and will be released separately.
+
+Version 1.5.4_1.3.1
+ - Recompiled for KSP 1.3.1 by ZAJC3W
+ - Partial implementation of changes made by Whitecat106 in test build 1.6.0
+
+Version 1.6.0 (test release by Whitecat106)
+ - Partial implementation of new features  This code has been absorbed into
+
+Version 1.5.4
+ - Last version by original author Whitecat106
+
+
+***Version  1.5.0
+
+Features:
+
+- Overhauled Resource & Station Keeping System - Thanks zajc3w!
+- Added decay rate breakdown UI
+- Added Mascon perturbation 
+- Added Yarkovsky effect perturbation
+- Added engine ignited requirements for Station Keeping 
+- Removed global resource 
+- Adjusted atmosphere warnings 
+- Fixed EVA warping and rendezvous issues 
+- Fixed a multitude of NaNs and exceptions 
+- Added QuickLoad / QuickSave handling 
+- Began Wiki creation 
+- Fixed multiple bugs and added other minor requests
+
+***Version  1.1.0***
+
+Features:
+
+- UI For KSP 1.1, active vessel decay. 
+- Settings to adjust decay rates, and filter UI menus. 
+- RSS support

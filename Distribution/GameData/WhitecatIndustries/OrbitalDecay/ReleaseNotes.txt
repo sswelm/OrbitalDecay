@@ -1,0 +1,122 @@
+﻿Orbital Decay Full Release 
+
+_______________________________________________________________
+Introduction
+_______________________________________________________________
+This plugin is intended to simulate Orbital Decay based on various real life equations and perturbations; 
+for a Stock or Real Solar System Kerbal Space Program Install.
+
+_______________________________________________________________
+How to Install
+_______________________________________________________________
+Simply download the latest version from the SpaceDock: Here
+
+Install the contents of the Orbital Decay x.x.x/GameData folder into your KSP GameData directory.
+
+Keep up to date with development changes and bug alerts by checking the release forum: Here
+
+_______________________________________________________________
+Using the Mod
+_______________________________________________________________
+How it works
+
+This mod models the four main types of orbital decay / orbital perturbation, whilst leaving room for N-Body simulation modifications. 
+The four modeled types are:
+ * Atmospheric Drag
+ * Radiation Drag
+ * Yarkovsky Effect
+ * Gravitational Perturbation
+
+Atmospheric Drag
+    Atmospheric Drag is the greatest of the four effects, it occurs on vessels which orbit an atmospheric planet, such as Kerbin/Earth or Eve/Venus. 
+    Atmospheric Drag effects only the Semi Major Axis and Eccentricity, and therefore altitude and speed, of an orbiting vessel. 
+    The drag is greatest at low altitude orbits around planets with a dense atmosphere. This form of drag is also dependent on the Mass and Area of a vessel, 
+    and also the conditions of the solar system over a 9-13 year cycle, such as Solar Radio Flux (F10.7) and the Geomagnetic Index(Ap) 
+    (Both of which are modeled by the SCS plugin included in this mod).
+
+    The following equations define atmospheric drag on a satellite of Mass M (Kg), Area A, Orbiting Body b at altitude h (Km) with semi major axis a 
+    and orbital period P, with solar flux (F10.7) and geomagnetic index (Ap):
+
+    Where;
+
+    T = Exotheric Temperature of the Body atmosphere
+
+    m = Molecular atmospheric mass
+
+    H = Arbitrary Scale Height
+
+    ρ = Atmospheric Density
+
+    T = 900 + 2.5 ( F10.7 - 70 ) + 1.5Ap
+
+    m = 27 - 0.012 ( h - 200 )
+
+    H = T / m
+
+    ρ = 6 x 10 ^ -10 x exp ( - ( h - 175 ) / H)
+
+    Cd = Coefficient of Drag (around 2.2)
+
+    dP/dt = Rate of change of Orbital Period (Seconds per Second for this plugin)
+
+    da/dt = Equivalent Rate of change of Semi Major Axis (Meters per second for this plugin)
+
+    gp = Body Gravitational Parameter
+
+    P2 = Final Period
+
+    dP/dt = -3π x a x ρ ( ( A x Cd ) / M )
+
+    P2 = P - dP/dt
+
+    da/dt = a - ( ( ( ( P2 / 2π ) ^ 2) x gp ) ^ ( 1 / 3 ) )
+
+    The mod is programmed to use the time base of 1 second for differential functions giving a small fraction of a meter change per second on average, 
+    however a heavy and large orbital structure in a very low orbit could have a decay rate of up to 30m/s.
+
+Radiation Drag
+    Every object in the Solar System experiences some form of drag due to the Poynting-Robertson effect; a small force is exerted on small objects 
+    due to thermal radiation and the energy transfer from photons, this normally results in a Semi Major axis change in the region of 4 * 10 ^ - 24 m/s. 
+    Thus decay rates from this can be as lower than 1mm per year.
+
+    Since the effect is minute, the equations have been excluded here, however assume an average change across the inner solar system of ^-24 to ^-17 m/s. 
+    The outer planets will have much lower effect, of course this is the assumption of an Earth scale solar system, in Stock KSP the actual decay rate may be much higher (^-10 m/s).
+
+Yarkovsky Effect
+    Similar to the Poynting-Robertson effect, the Yarkovsky effect mainly perturbs heliocentric orbits due to variations in thermal conduction 
+    on a spinning object, for example a spinning asteroid may have more photon impacts upon one surface than another due to the obliquity of its spin axis, 
+    this causes a small (^-32 m/s) change in orbital semi major axis due to energy losses from photon momentum exchanges.
+
+    This effect is one of the hardest to model in KSP since vessel objects on rails do not spin, similarly rotation axes are only calculated for an 
+    active vessel and albedo and other characteristics of satellites cannot be directly calculated since the composition and thermal properties of 
+    the object are not known. For the moment this is limited to estimations and approximations using real world analogues. Hopefully compatibility with 
+    Persistent Rotation can be established and a more accurate model can be obtained.
+
+Gravitational Perturbation
+    This perturbation is based on Mass concentrations on a planetary surface, on every body in the solar system, mass is never evenly distributed 
+    across the near spherical surfaces, for example, on the moon Mass concentrations (Mascons) cause orbits to bend and alter as the acceleration 
+    experienced by a satellite varies; causing changes in Inclination, Eccentricity, Semi Major Axis and position nodes. The effects can vary 
+    in magnitude and can be devastating for low orbiting vessels, Mascons are the main cause of satellite decay around non atmospheric bodies. 
+    The later Apollo missions released a multitude of small satellites to study the effect in greater detail across the 1970's.
+
+    These changes are modeled on a planet by planet basis, currently only for Kerbin, Mun, Earth and Moon. The equations are quite complex and 
+    cannot be correctly described in this wiki; however this Nasa Technical Report described the full effect and calculations can be derived from this.
+
+_______________________________________________________________
+Playing with Orbital Decay
+_______________________________________________________________
+The UI
+    The User Interface is a part of the stock toolbar and can be accessed by clicking on the 'cat' icon. This will bring up the main decay manager window, 
+    here you can enable station keeping, view the fuel status of a vessel and view the current total decay rate (a more detailed decay rate breakdown is 
+    also available as shown below) and an estimated time until decay/time until resource depletion.
+
+Station Keeping
+    Every controllable vessel has the ability to station keep, if the vessel has an ignited engine or RCS block and enough fuel. Once activated the fuel 
+    will drain based on the current decay rate and efficiency of the engines, station keeping will automatically be disabled if the station keeping fuel 
+    runs out. A vessel in a low orbit <300km without station keeping can be expected to remain in orbit no longer than 300 days. The station keeping engine 
+    and resource can be set with the right click menu on the command module of the vessel in question.
+
+Orbit Positioning
+    For optimum orbital lifetime a vessel should be beyond 2x the radius of the body it is orbiting, have a high mass and have a low surface area; 
+    or have plenty of station keeping fuel! Close orbits around the Sun or a dense atmospheric planet will have the shortest lifespan whereas orbits 
+    beyond Jupiter/Jool will likely last in excess of 50000 years.
