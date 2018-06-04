@@ -24,13 +24,10 @@
  */
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using UnityEngine;
-using KSP.IO;
 
-namespace WhitecatIndustries
+namespace WhitecatIndustries.Source
 {
     public class MasConData : MonoBehaviour
     {
@@ -60,7 +57,7 @@ namespace WhitecatIndustries
         
         public static bool IsBetween(double item, double min, double max) 
         {
-            return (Enumerable.Range(Math.Abs((int)min), Math.Abs((int)max)).Contains(Math.Abs((int)item)));
+            return Enumerable.Range(Math.Abs((int)min), Math.Abs((int)max)).Contains(Math.Abs((int)item));
         }
         
 
@@ -120,7 +117,7 @@ namespace WhitecatIndustries
                         LongitudeWithin = true;
                     }
 
-                    if (LatitudeWithin == true && LongitudeWithin == true)
+                    if (LatitudeWithin && LongitudeWithin)
                     {
                         Local = MasCon;
                         break;
@@ -191,13 +188,13 @@ namespace WhitecatIndustries
                         }
                         
 
-                        if (LatitudeWithin == true && LongitudeWithin == true)
+                        if (LatitudeWithin && LongitudeWithin)
                         {
                             break;
                         }
                     }
 
-                    if (LatitudeWithin == true && LongitudeWithin == true)
+                    if (LatitudeWithin && LongitudeWithin)
                     {
                         WithinEffectRange = true;
                     }
@@ -226,28 +223,28 @@ namespace WhitecatIndustries
 
             double GalAtDistance = 0.0;
 
-            var R = vessel.orbitDriver.orbit.referenceBody.Radius;
-            var A = ToRadians(CentreLat);
-            var B = ToRadians(EdgeLat);
-            var C = (ToRadians(EdgeLat) - ToRadians(CentreLat));
-            var D = (ToRadians(EdgeLong) - ToRadians(CentreLong));
-            var E = Math.Sin(C / 2) * Math.Sin(C / 2) +
+            double R = vessel.orbitDriver.orbit.referenceBody.Radius;
+            double A = ToRadians(CentreLat);
+            double B = ToRadians(EdgeLat);
+            double C = ToRadians(EdgeLat) - ToRadians(CentreLat);
+            double D = ToRadians(EdgeLong) - ToRadians(CentreLong);
+            double E = Math.Sin(C / 2) * Math.Sin(C / 2) +
                     Math.Cos(A) * Math.Cos(B) *
                     Math.Sin(D / 2) * Math.Sin(D / 2);
-            var F = 2 * Math.Atan2(Math.Sqrt(E), Math.Sqrt(1 - E));
-            var Edgedistance = R * F;
+            double F = 2 * Math.Atan2(Math.Sqrt(E), Math.Sqrt(1 - E));
+            double Edgedistance = R * F;
 
-            var φ1 = ToRadians(CentreLat);
-            var φ2 = ToRadians(vessel.latitude);
-            var Δφ = (ToRadians(vessel.latitude) - ToRadians(CentreLat));
-            var Δλ = (ToRadians(vessel.longitude) - ToRadians(CentreLong));
-            var a = Math.Sin(Δφ / 2) * Math.Sin(Δφ / 2) +
+            double φ1 = ToRadians(CentreLat);
+            double φ2 = ToRadians(vessel.latitude);
+            double Δφ = ToRadians(vessel.latitude) - ToRadians(CentreLat);
+            double Δλ = ToRadians(vessel.longitude) - ToRadians(CentreLong);
+            double a = Math.Sin(Δφ / 2) * Math.Sin(Δφ / 2) +
                     Math.Cos(φ1) * Math.Cos(φ2) *
                     Math.Sin(Δλ / 2) * Math.Sin(Δλ / 2);
-            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-            var Vesseldistance = R * c;
+            double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            double Vesseldistance = R * c;
 
-            GalAtDistance = (Math.Abs(CentreGal) / Edgedistance) * Vesseldistance; // Work out negative push mascons for 1.6.0 removed absolute CentreGal
+            GalAtDistance = Math.Abs(CentreGal) / Edgedistance * Vesseldistance; // Work out negative push mascons for 1.6.0 removed absolute CentreGal
 
             /*
             double GravitationalConstant = 6.67408 * Math.Pow(10.0, -11.0); // G [Newton Meter Squared per Square Kilograms] 
@@ -262,7 +259,7 @@ namespace WhitecatIndustries
 
         public static double ToRadians(double val)
         {
-            return (Math.PI / 180.0) * val;
+            return Math.PI / 180.0 * val;
         }
 
         public static double ToDegrees(double val)
@@ -275,12 +272,12 @@ namespace WhitecatIndustries
         public static double CalculateRightAscension(Vector3d direction)
         {
             double RAAN = 0.0;
-            var NormalisedVector = Vector3d.Normalize(direction);
-            var l = direction.x / NormalisedVector.magnitude;
-            var m = direction.y / NormalisedVector.magnitude;
-            var n = direction.z / NormalisedVector.magnitude;
-            var alpha = 0.0;
-            var delta = 0.0;
+            Vector3d NormalisedVector = Vector3d.Normalize(direction);
+            double l = direction.x / NormalisedVector.magnitude;
+            double m = direction.y / NormalisedVector.magnitude;
+            double n = direction.z / NormalisedVector.magnitude;
+            double alpha = 0.0;
+            double delta = 0.0;
             delta = Math.Asin(n) * 180.0 / Math.PI;
 
             if (m > 0)
@@ -301,12 +298,12 @@ namespace WhitecatIndustries
         {
             double DEC = 0.0;
 
-            var NormalisedVector = Vector3d.Normalize(direction);
-            var l = direction.x / NormalisedVector.magnitude;
-            var m = direction.y / NormalisedVector.magnitude;
-            var n = direction.z / NormalisedVector.magnitude;
+            Vector3d NormalisedVector = Vector3d.Normalize(direction);
+            double l = direction.x / NormalisedVector.magnitude;
+            double m = direction.y / NormalisedVector.magnitude;
+            double n = direction.z / NormalisedVector.magnitude;
 
-            var delta = 0.0;
+            double delta = 0.0;
             delta = Math.Asin(n) * 180.0 / Math.PI;
 
             DEC = delta;

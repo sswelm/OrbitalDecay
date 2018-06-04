@@ -23,22 +23,17 @@
  * is purely coincidental.
  */
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using UnityEngine;
-using KSP.IO;
 
-namespace WhitecatIndustries
+namespace WhitecatIndustries.Source
 {
     public class ResourceManager : MonoBehaviour
     {
         
         public static void RemoveResources(Vessel vessel, double quantity)//151 new wersion consuming multiple resources saved on vessel
         {
-            
-            float ratio = 0;
             string resource = GetResourceNames(vessel);
             int index = 0;
             if (vessel == FlightGlobals.ActiveVessel)
@@ -46,9 +41,9 @@ namespace WhitecatIndustries
                 
                 foreach (string res in resource.Split(' '))
                 {
-                    ratio = GetResourceRatio(vessel, index++);
+                    float ratio = GetResourceRatio(vessel, index++);
                     int MonoPropId = PartResourceLibrary.Instance.GetDefinition(res).id;
-                    vessel.rootPart.RequestResource(MonoPropId, (quantity/2*ratio),ResourceFlowMode.STAGE_PRIORITY_FLOW);
+                    vessel.rootPart.RequestResource(MonoPropId, quantity/2*ratio,ResourceFlowMode.STAGE_PRIORITY_FLOW);
                 }
             }
             else
@@ -59,12 +54,10 @@ namespace WhitecatIndustries
                 {
                     foreach (ProtoPartModuleSnapshot protopartmodulesnapshot in protopart.modules)
                     {
-                        if (protopartmodulesnapshot.moduleName == "ModuleOrbitalDecay")
-                        {
-                            ConfigNode node = protopartmodulesnapshot.moduleValues.GetNode("stationKeepData");
-                            node.SetValue("fuelLost", (quantity + double.Parse(node.GetValue("fuelLost"))).ToString());
-                            break;
-                        }
+                        if (protopartmodulesnapshot.moduleName != "ModuleOrbitalDecay") continue;
+                        ConfigNode node = protopartmodulesnapshot.moduleValues.GetNode("stationKeepData");
+                        node.SetValue("fuelLost", (quantity + double.Parse(node.GetValue("fuelLost"))).ToString());
+                        break;
                     }
                 }
             }
@@ -87,13 +80,10 @@ namespace WhitecatIndustries
                 {
                     foreach (ProtoPartModuleSnapshot protopartmodulesnapshot in protopart.modules)
                     {
-                        if (protopartmodulesnapshot.moduleName == "ModuleOrbitalDecay")
-                        {
-                            ConfigNode node = protopartmodulesnapshot.moduleValues.GetNode("stationKeepData");
-                            ResourceNames = node.GetValue("resources");
-                            break;
-
-                        }
+                        if (protopartmodulesnapshot.moduleName != "ModuleOrbitalDecay") continue;
+                        ConfigNode node = protopartmodulesnapshot.moduleValues.GetNode("stationKeepData");
+                        ResourceNames = node.GetValue("resources");
+                        break;
                     }
                 }
             }
@@ -103,12 +93,10 @@ namespace WhitecatIndustries
         {
             float ResourceRatio = 0;
             if (vessel == FlightGlobals.ActiveVessel)
-            {
-               
-                    List<ModuleOrbitalDecay> modlist = vessel.FindPartModulesImplementing<ModuleOrbitalDecay>();
-                    if(modlist.Count > 0 )
-                        ResourceRatio = modlist.ElementAt(0).stationKeepData.ratios[index];
-               
+            {               
+                List<ModuleOrbitalDecay> modlist = vessel.FindPartModulesImplementing<ModuleOrbitalDecay>();
+                if(modlist.Count > 0 )
+                    ResourceRatio = modlist.ElementAt(0).stationKeepData.ratios[index];
             }
             else
             {
@@ -118,22 +106,19 @@ namespace WhitecatIndustries
                 {
                     foreach (ProtoPartModuleSnapshot protopartmodulesnapshot in protopart.modules)
                     {
-                        if (protopartmodulesnapshot.moduleName == "ModuleOrbitalDecay")
+                        if (protopartmodulesnapshot.moduleName != "ModuleOrbitalDecay") continue;
+                        ConfigNode node = protopartmodulesnapshot.moduleValues.GetNode("stationKeepData");
+                        int i = 0;
+                        foreach (string str in node.GetValue("ratios").Split(' '))
                         {
-                            ConfigNode node = protopartmodulesnapshot.moduleValues.GetNode("stationKeepData");
-                            int i = 0;
-                            foreach (string str in node.GetValue("ratios").Split(' '))
+                            if (i == index)
                             {
-                                if (i == index)
-                                {
-                                    ResourceRatio = float.Parse(str);
+                                ResourceRatio = float.Parse(str);
                                 break;
-                                }
-                                i++;
                             }
-                            break;
-
+                            i++;
                         }
+                        break;
                     }
                 }
             }
@@ -163,17 +148,14 @@ namespace WhitecatIndustries
                 {
                     foreach (ProtoPartModuleSnapshot protopartmodulesnapshot in protopart.modules)
                     {
-                        if (protopartmodulesnapshot.moduleName == "ModuleOrbitalDecay" && fuel == 0)
+                        if (protopartmodulesnapshot.moduleName != "ModuleOrbitalDecay" || fuel != 0) continue;
+                        ConfigNode node = protopartmodulesnapshot.moduleValues.GetNode("stationKeepData");
+                        foreach( string str in node.GetValue("amounts").Split(' '))
                         {
-                            ConfigNode node = protopartmodulesnapshot.moduleValues.GetNode("stationKeepData");
-                            foreach( string str in node.GetValue("amounts").Split(' '))
-                            {
-                                fuel += double.Parse(str);
-                            }
-                            fuel -= double.Parse(node.GetValue("fuelLost"));
-                            break;
-
+                            fuel += double.Parse(str);
                         }
+                        fuel -= double.Parse(node.GetValue("fuelLost"));
+                        break;
                     }
                 }
             }

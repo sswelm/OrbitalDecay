@@ -25,18 +25,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using UnityEngine;
-using KSP.IO;
 using KSP.UI.Screens;
+using UnityEngine;
 
-namespace WhitecatIndustries
+namespace WhitecatIndustries.Source
 {
     [KSPAddon(KSPAddon.Startup.EveryScene, false)]
-    class UserInterface : MonoBehaviour
+    internal class UserInterface : MonoBehaviour
     {
-        private static int currentTab = 0;
+        private static int currentTab;
         private static string[] tabs = { "Vessels", "Settings" };
         private static Rect MainwindowPosition = new Rect(0, 0, 300, 400);
         private static Rect DecayBreakdownwindowPosition = new Rect(0, 0, 450, 150);
@@ -48,30 +45,30 @@ namespace WhitecatIndustries
         private static Color tabSelectedTextColor = new Color(0.0f, 0.0f, 0.0f);
         private GUISkin skins = HighLogic.Skin;
         private int id = Guid.NewGuid().GetHashCode();
-        public static ApplicationLauncherButton ToolbarButton = null;
+        public static ApplicationLauncherButton ToolbarButton;
 
         public static Dictionary<Vessel, double> NBodyVesselAccelTimes;
         public static Vector3d NBodyMomentaryDeltaV;
 
-        public static bool Visible = false;
-        public static bool DecayBreakdownVisible = false;
-        public static bool NBodyBreakdownVisible = false;
+        public static bool Visible;
+        public static bool DecayBreakdownVisible;
+        public static bool NBodyBreakdownVisible;
 
         public static List<VesselType> FilterTypes = new List<VesselType>();
 
-        public static Texture launcher_icon = null;
+        public static Texture launcher_icon;
 
-        Vector2 scrollPosition1 = Vector2.zero;
-        Vector2 scrollPosition2 = Vector2.zero;
-        Vector2 scrollPosition3 = Vector2.zero;
-        float MultiplierValue = 5.0f;
-        float MultiplierValue2 = 5.0f;
+        private Vector2 scrollPosition1 = Vector2.zero;
+        private Vector2 scrollPosition2 = Vector2.zero;
+        private Vector2 scrollPosition3 = Vector2.zero;
+        private float MultiplierValue = 5.0f;
+        private float MultiplierValue2 = 5.0f;
 
-        float NBodyStepsContainer = float.Parse(Settings.ReadNBCC().ToString());
+        private float NBodyStepsContainer = float.Parse(Settings.ReadNBCC().ToString());
 
-        Vessel subwindowVessel = new Vessel();
+        private Vessel subwindowVessel = new Vessel();
 
-        void Awake()
+        private void Awake()
         {
             GameEvents.onGUIApplicationLauncherReady.Remove(ReadyEvent);
             GameEvents.onGUIApplicationLauncherReady.Add(ReadyEvent);
@@ -85,7 +82,7 @@ namespace WhitecatIndustries
         {
             if (ApplicationLauncher.Ready && ToolbarButton == null)
             {
-                var Scenes = ApplicationLauncher.AppScenes.TRACKSTATION | ApplicationLauncher.AppScenes.SPACECENTER | ApplicationLauncher.AppScenes.FLIGHT | ApplicationLauncher.AppScenes.MAPVIEW;
+                ApplicationLauncher.AppScenes Scenes = ApplicationLauncher.AppScenes.TRACKSTATION | ApplicationLauncher.AppScenes.SPACECENTER | ApplicationLauncher.AppScenes.FLIGHT | ApplicationLauncher.AppScenes.MAPVIEW;
                 launcher_icon = GameDatabase.Instance.GetTexture("WhitecatIndustries/Orbital Decay/Icon/IconToolbar", false);
                 ToolbarButton = ApplicationLauncher.Instance.AddModApplication(GuiOn, GuiOff, null, null, null, null, Scenes, launcher_icon);
             }
@@ -299,7 +296,7 @@ namespace WhitecatIndustries
 
             scrollPosition1 = GUILayout.BeginScrollView(scrollPosition1, GUILayout.Width(290), GUILayout.Height(350));
             bool Realistic = Settings.ReadRD();
-            var ClockType = Settings.Read24Hr();
+            bool ClockType = Settings.Read24Hr();
             //151var Resource = Settings.ReadStationKeepingResource();
 
             foreach (Vessel vessel in FlightGlobals.Vessels)
@@ -309,16 +306,16 @@ namespace WhitecatIndustries
 
                     if (vessel.situation == Vessel.Situations.ORBITING)
                     {
-                        var StationKeeping = VesselData.FetchStationKeeping(vessel).ToString();
-                        var StationKeepingFuelRemaining = ResourceManager.GetResources(vessel).ToString("F3");
-                        var Resource = ResourceManager.GetResourceNames(vessel);
-                        var ButtonText = "";
-                        var HoursInDay = 6.0;
+                        string StationKeeping = VesselData.FetchStationKeeping(vessel).ToString();
+                        string StationKeepingFuelRemaining = ResourceManager.GetResources(vessel).ToString("F3");
+                        string Resource = ResourceManager.GetResourceNames(vessel);
+                        string ButtonText = "";
+                        double HoursInDay = 6.0;
 
                         double DaysInYear = 0;
                         bool KerbinTime = GameSettings.KERBIN_TIME;
 
-                        if (KerbinTime == true)
+                        if (KerbinTime)
                         {
                             DaysInYear = 9203545 / (60 * 60 * HoursInDay);
                         }
@@ -337,7 +334,7 @@ namespace WhitecatIndustries
                             ButtonText = "Enable Station Keeping";
                         }
 
-                        if (ClockType == true)
+                        if (ClockType)
                         {
                             HoursInDay = 24.0;
                         }
@@ -424,7 +421,7 @@ namespace WhitecatIndustries
                             DecayRateSKL = DecayManager.DecayRateAtmosphericDrag(vessel) + DecayManager.DecayRateRadiationPressure(vessel) + DecayManager.DecayRateYarkovskyEffect(vessel);
 
 
-                            double StationKeepingLifetime = (double.Parse(StationKeepingFuelRemaining) / ((DecayRateSKL / TimeWarp.CurrentRate) * VesselData.FetchEfficiency(vessel) /*ResourceManager.GetEfficiency(Resource)*/ * Settings.ReadResourceRateDifficulty())) / (60 * 60 * HoursInDay);
+                            double StationKeepingLifetime = double.Parse(StationKeepingFuelRemaining) / (DecayRateSKL / TimeWarp.CurrentRate * VesselData.FetchEfficiency(vessel) /*ResourceManager.GetEfficiency(Resource)*/ * Settings.ReadResourceRateDifficulty()) / (60 * 60 * HoursInDay);
 
                             if (StationKeepingLifetime < -5) // SRP Fixes
                             {
@@ -469,28 +466,28 @@ namespace WhitecatIndustries
                             if (StationKeeping == "True")
                             {
                                 VesselData.UpdateStationKeeping(vessel, false);
-                                ScreenMessages.PostScreenMessage("Vessel: " + vessel.vesselName + (": Station Keeping Disabled"));
+                                ScreenMessages.PostScreenMessage("Vessel: " + vessel.vesselName + ": Station Keeping Disabled");
 
                             }
 
                             if (StationKeeping == "False")
                             {
-                                if (StationKeepingManager.EngineCheck(vessel) == true)
+                                if (StationKeepingManager.EngineCheck(vessel))
                                 {
-                                    if ((double.Parse(StationKeepingFuelRemaining) > 0.01)) // Good enough...
+                                    if (double.Parse(StationKeepingFuelRemaining) > 0.01) // Good enough...
                                     {
 
                                         VesselData.UpdateStationKeeping(vessel, true);
-                                        ScreenMessages.PostScreenMessage("Vessel: " + vessel.vesselName + (": Station Keeping Enabled"));
+                                        ScreenMessages.PostScreenMessage("Vessel: " + vessel.vesselName + ": Station Keeping Enabled");
                                     }
                                     else
                                     {
-                                        ScreenMessages.PostScreenMessage("Vessel: " + vessel.vesselName + (" has no fuel to Station Keep!"));
+                                        ScreenMessages.PostScreenMessage("Vessel: " + vessel.vesselName + " has no fuel to Station Keep!");
                                     }
                                 }
                                 else
                                 {
-                                    ScreenMessages.PostScreenMessage("Vessel: " + vessel.vesselName + (" has no Engines or RCS modules on board!"));
+                                    ScreenMessages.PostScreenMessage("Vessel: " + vessel.vesselName + " has no Engines or RCS modules on board!");
                                 }
                             }
                         }
@@ -520,11 +517,11 @@ namespace WhitecatIndustries
             GUILayout.Label("_________________________________________");
             GUILayout.Space(3);
 
-            var DecayDifficulty = Settings.ReadDecayDifficulty();
-            var ResourceDifficulty = Settings.ReadResourceRateDifficulty();
-            var NBody = Settings.ReadNB();
+            double DecayDifficulty = Settings.ReadDecayDifficulty();
+            double ResourceDifficulty = Settings.ReadResourceRateDifficulty();
+            bool NBody = Settings.ReadNB();
 
-            var NBodyText = ""; // 1.6.0 N-Body 
+            string NBodyText = ""; // 1.6.0 N-Body 
             
              // 1.7.0 maybe?
             if (Settings.ReadNB())
@@ -542,7 +539,7 @@ namespace WhitecatIndustries
             if (GUILayout.Button("Toggle Kerbin Day (6 hour) / Earth Day (24 hour)"))
             {
                 Settings.Write24H(!Settings.Read24Hr());
-                if (Settings.Read24Hr() == true)
+                if (Settings.Read24Hr())
                 {
                     ScreenMessages.PostScreenMessage("Earth Day (24 hour) set.");
                 }
@@ -589,7 +586,7 @@ namespace WhitecatIndustries
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             MultiplierValue = GUILayout.HorizontalSlider(MultiplierValue, 0.5f, 50.0f);
             GUILayout.Space(2);
-            GUILayout.Label("Current Decay multiplier: " + (DecayDifficulty).ToString("F1"));
+            GUILayout.Label("Current Decay multiplier: " + DecayDifficulty.ToString("F1"));
             GUILayout.Space(2); 
             GUILayout.Label("New Decay multiplier: " + (MultiplierValue/5).ToString("F1"));
             GUILayout.Space(2); 
@@ -597,7 +594,7 @@ namespace WhitecatIndustries
             if (GUILayout.Button("Set Multiplier"))
             {
                 Settings.WriteDifficulty(MultiplierValue/5);
-                ScreenMessages.PostScreenMessage("Decay Multiplier set to: " + ((MultiplierValue/5).ToString("F2")));
+                ScreenMessages.PostScreenMessage("Decay Multiplier set to: " + (MultiplierValue/5).ToString("F2"));
             }
 
             GUILayout.Space(2);
@@ -606,7 +603,7 @@ namespace WhitecatIndustries
             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
             MultiplierValue2 = GUILayout.HorizontalSlider(MultiplierValue2, 0.5f, 50.0f);
             GUILayout.Space(2);
-            GUILayout.Label("Resource drain rate multiplier: " + (ResourceDifficulty.ToString("F1")));
+            GUILayout.Label("Resource drain rate multiplier: " + ResourceDifficulty.ToString("F1"));
             GUILayout.Space(2);
             GUILayout.Label("New Resource drain rate multiplier: " + (MultiplierValue2 / 5).ToString("F1"));
             GUILayout.Space(2);
@@ -614,7 +611,7 @@ namespace WhitecatIndustries
             if (GUILayout.Button("Set Multiplier"))
             {
                 Settings.WriteResourceRateDifficulty(MultiplierValue2 / 5);
-                ScreenMessages.PostScreenMessage("Resource drain rate multiplier: " + ((MultiplierValue2 / 5).ToString("F1")));
+                ScreenMessages.PostScreenMessage("Resource drain rate multiplier: " + (MultiplierValue2 / 5).ToString("F1"));
             }
 
             GUILayout.Space(2);
@@ -755,7 +752,7 @@ namespace WhitecatIndustries
         {
             if (GUI.Button(new Rect(DecayBreakdownwindowPosition.width - 22, 3, 19, 19), "x"))
             {
-                if (DecayBreakdownVisible != false)
+                if (DecayBreakdownVisible)
                     DecayBreakdownVisible = false;
             }
             GUILayout.BeginVertical();
@@ -847,7 +844,7 @@ namespace WhitecatIndustries
 
             else if (DecayRatePerDay <= 1000.0 && DecayRatePerDay >= 1.0)
             {
-                DecayRateString = (DecayRatePerDay).ToString("F1") + "m per day.";
+                DecayRateString = DecayRatePerDay.ToString("F1") + "m per day.";
             }
 
             else if (DecayRatePerDay < 1.0 && DecayRatePerDay >= 0.01)
@@ -869,7 +866,7 @@ namespace WhitecatIndustries
 
                 else if (DecayRatePerYear <= 1000.0 && DecayRatePerYear >= 1.0)
                 {
-                    DecayRateString = (DecayRatePerYear).ToString("F1") + "m per year.";
+                    DecayRateString = DecayRatePerYear.ToString("F1") + "m per year.";
                 }
 
                 else if (DecayRatePerYear < 1.0 && DecayRatePerYear >= 0.01)
@@ -937,7 +934,7 @@ namespace WhitecatIndustries
 
             else if (DecayRatePerDay <= 1000.0 && DecayRatePerDay >= 1.0)
             {
-                DecayRateString = (DecayRatePerDay).ToString("F1") + "m per day.";
+                DecayRateString = DecayRatePerDay.ToString("F1") + "m per day.";
             }
 
             else if (DecayRatePerDay < 1.0 && DecayRatePerDay >= 0.01)
@@ -959,7 +956,7 @@ namespace WhitecatIndustries
 
                 else if (DecayRatePerYear <= 1.0 && DecayRatePerYear >= 0.01)
                 {
-                    DecayRateString = (DecayRatePerYear).ToString("F1") + "m per year.";
+                    DecayRateString = DecayRatePerYear.ToString("F1") + "m per year.";
                 }
 
                 else if (DecayRatePerYear < 0.01 && DecayRatePerYear >= 0.001)
@@ -1050,42 +1047,42 @@ namespace WhitecatIndustries
 
             if (DecayRatePerDay > 360.0)
             {
-                DecayRateString = ("Vessel too close to a Mass Concentration.");
+                DecayRateString = "Vessel too close to a Mass Concentration.";
             }
 
             else if (DecayRatePerDay <= 360.0 && DecayRatePerDay >= 1.0)
             {
-                DecayRateString = (DecayRatePerDay).ToString("F1") + "degrees per day.";
+                DecayRateString = DecayRatePerDay.ToString("F1") + "degrees per day.";
             }
 
-            else if (DecayRatePerDay < 1.0 && DecayRatePerDay >= (1.0/60.0))
+            else if (DecayRatePerDay < 1.0 && DecayRatePerDay >= 1.0/60.0)
             {
                 DecayRateString = (DecayRatePerDay * 10).ToString("F1") + "arc-minutes per day.";
             }
 
-            else if (DecayRatePerDay < (1.0/60.0) && DecayRatePerDay >= ((1.0/60.0)/60.0))
+            else if (DecayRatePerDay < 1.0/60.0 && DecayRatePerDay >= 1.0/60.0/60.0)
             {
                 DecayRateString = (DecayRatePerDay * 100).ToString("F1") + "arc-seconds per day.";
             }
 
-            else if (DecayRatePerDay < ((1.0/60.0)/60.0))
+            else if (DecayRatePerDay < 1.0/60.0/60.0)
             {
                 if (DecayRatePerYear > 360.0)
                 {
-                    DecayRateString = ("Vessel too close to a Mass Concentration.");
+                    DecayRateString = "Vessel too close to a Mass Concentration.";
                 }
 
                 else if (DecayRatePerYear <= 360.0 && DecayRatePerYear >= 1.0)
                 {
-                    DecayRateString = (DecayRatePerYear).ToString("F1") + "degrees per year.";
+                    DecayRateString = DecayRatePerYear.ToString("F1") + "degrees per year.";
                 }
 
-                else if (DecayRatePerYear < 1.0 && DecayRatePerYear >= (1.0/60.0))
+                else if (DecayRatePerYear < 1.0 && DecayRatePerYear >= 1.0/60.0)
                 {
                     DecayRateString = (DecayRatePerYear * 60).ToString("F1") + "arc-minutes per year.";
                 }
 
-                else if (DecayRatePerYear < (1.0/60.0) && DecayRatePerYear >= ((1.0/60.0)/60.0))
+                else if (DecayRatePerYear < 1.0/60.0 && DecayRatePerYear >= 1.0/60.0/60.0)
                 {
                     DecayRateString = (DecayRatePerYear * 60 * 60).ToString("F1") + "arc-seconds per year.";
                 }
@@ -1126,7 +1123,7 @@ namespace WhitecatIndustries
 
             if (TimeUntilDecayInDays > DaysInYear)
             {
-                if ((TimeUntilDecayInDays / DaysInYear) > 1000)
+                if (TimeUntilDecayInDays / DaysInYear > 1000)
                 {
                     DecayTimeString = "> 1000 years.";
                 }
@@ -1145,7 +1142,7 @@ namespace WhitecatIndustries
 
                 else 
                 {
-                    if ((TimeUntilDecayInDays * HoursInDay) > 1.0)
+                    if (TimeUntilDecayInDays * HoursInDay > 1.0)
                     {
                         DecayTimeString = (TimeUntilDecayInDays * HoursInDay).ToString("F1") + " hours.";
                     }

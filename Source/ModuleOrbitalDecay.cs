@@ -26,10 +26,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using UnityEngine;
 
-namespace WhitecatIndustries
+namespace WhitecatIndustries.Source
 {
     public class ModuleOrbitalDecay : PartModule
     {
@@ -43,7 +42,7 @@ namespace WhitecatIndustries
         [KSPField(isPersistant = false, guiActive = true, guiName = "ISP" )]
         public float ISP;
         [KSPField(isPersistant = true, guiActive = false)]
-        public int EngineIndex = 0;
+        public int EngineIndex;
 
         [KSPField(isPersistant = true)]
         public StationKeepData stationKeepData;
@@ -52,7 +51,7 @@ namespace WhitecatIndustries
         public string[] EngineList = { "" };
         
         private float UPTInterval = 1.0f;
-        private float lastUpdate = 0.0f;
+        private float lastUpdate;
        
         [KSPEvent(active = true, guiActive = true, guiName = "Enable Station Keeping")]
         public void ToggleSK()
@@ -302,7 +301,7 @@ namespace WhitecatIndustries
         {
 
             
-            if ((Time.time - lastUpdate) > UPTInterval)
+            if (Time.time - lastUpdate > UPTInterval)
             {
                 lastUpdate = Time.time;
                 fetchEngineData();
@@ -333,8 +332,8 @@ namespace WhitecatIndustries
                     for (int j = 0; j < stationKeepData.resources.Count(); j++) 
                     {
                         float ratio2 = 10 * stationKeepData.ratios[j];
-                        if ((stationKeepData.amounts[i] /ratio1) < (stationKeepData.amounts[j]/ ratio2))
-                            stationKeepData.amounts[j] = (stationKeepData.amounts[i] / ratio1) * ratio2;
+                        if (stationKeepData.amounts[i] /ratio1 < stationKeepData.amounts[j]/ ratio2)
+                            stationKeepData.amounts[j] = stationKeepData.amounts[i] / ratio1 * ratio2;
                         /*equalizing fuel amount to comply with consumption ratios
                          * without mutliplying ratios by 10 result is acurate only to 4th position after digital point 
                          * or 7th position in total for huge amounts of fuel
@@ -388,7 +387,7 @@ namespace WhitecatIndustries
     public class StationKeepData : IConfigNode
     {
         [SerializeField]
-        public bool IsStationKeeping = false;
+        public bool IsStationKeeping;
         [SerializeField]
         public string engine =  "" ;
         [SerializeField]
@@ -396,11 +395,11 @@ namespace WhitecatIndustries
         [SerializeField]
         public double[] amounts = { 0 };
         [SerializeField]
-        public double fuelLost = 0;
+        public double fuelLost;
         [SerializeField]
         public float[] ratios = { 0 };
         [SerializeField]
-        public float ISP = 0;
+        public float ISP;
         [SerializeField]
         public double Area = 0;
 

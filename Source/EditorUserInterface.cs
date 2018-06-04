@@ -1,17 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using UnityEngine;
-using KSP.IO;
 using KSP.UI.Screens;
+using UnityEngine;
 
-namespace WhitecatIndustries
+namespace WhitecatIndustries.Source
 {
     [KSPAddon(KSPAddon.Startup.EveryScene, false)]
-    class VABUserInterface : MonoBehaviour
+    internal class VABUserInterface : MonoBehaviour
     {
-        private static int currentTab = 0;
+        private static int currentTab;
         private static string[] tabs = { "Orbital Decay Utilities" };
         private static Rect MainwindowPosition = new Rect(0, 0, 300, 400);
         private static Rect DecayBreakdownwindowPosition = new Rect(0, 0, 450, 150);
@@ -23,14 +21,14 @@ namespace WhitecatIndustries
         private static Color tabSelectedTextColor = new Color(0.0f, 0.0f, 0.0f);
         private GUISkin skins = HighLogic.Skin;
         private int id = Guid.NewGuid().GetHashCode();
-        public static ApplicationLauncherButton ToolbarButton = null;
-        public bool Visible = false;
+        public static ApplicationLauncherButton ToolbarButton;
+        public bool Visible;
 
-        public static Texture launcher_icon = null;
-        float AltitudeValue = 70000f;
-        CelestialBody ReferenceBody = FlightGlobals.GetHomeBody();
+        public static Texture launcher_icon;
+        private float AltitudeValue = 70000f;
+        private CelestialBody ReferenceBody = FlightGlobals.GetHomeBody();
 
-        void Awake()
+        private void Awake()
         {
             GameEvents.onGUIApplicationLauncherReady.Remove(ReadyEvent);
             GameEvents.onGUIApplicationLauncherReady.Add(ReadyEvent);
@@ -44,7 +42,7 @@ namespace WhitecatIndustries
         {
             if (ApplicationLauncher.Ready && ToolbarButton == null)
             {
-                var Scenes = ApplicationLauncher.AppScenes.VAB | ApplicationLauncher.AppScenes.SPH;
+                ApplicationLauncher.AppScenes Scenes = ApplicationLauncher.AppScenes.VAB | ApplicationLauncher.AppScenes.SPH;
                 launcher_icon = GameDatabase.Instance.GetTexture("WhitecatIndustries/Orbital Decay/Icon/IconToolbar", false);
                 ToolbarButton = ApplicationLauncher.Instance.AddModApplication(GuiOn, GuiOff, null, null, null, null, Scenes, launcher_icon);
             }
@@ -251,7 +249,7 @@ namespace WhitecatIndustries
         public double CalculateArea()
         {
             double Area = 0;
-            Area = (EditorLogic.fetch.ship.shipSize.y * EditorLogic.fetch.ship.shipSize.z) / 4;
+            Area = EditorLogic.fetch.ship.shipSize.y * EditorLogic.fetch.ship.shipSize.z / 4;
 
             return Area;
         }
@@ -294,10 +292,10 @@ namespace WhitecatIndustries
                                 FuelRatios.Add(pro.ToString(), pro.ratio);
 
                                 double ResEff = 1.0 / GetEfficiencyEng(p);
-                                var ClockType = Settings.Read24Hr();
+                                bool ClockType = Settings.Read24Hr();
                                 double HoursInDay = 6;
 
-                                if (ClockType == true)
+                                if (ClockType)
                                 {
                                     HoursInDay = 24.0;
                                 }
@@ -306,7 +304,7 @@ namespace WhitecatIndustries
                                     HoursInDay = 6.0;
                                 }
 
-                                Lifetime = Lifetime + ((pro.totalResourceCapacity) / ((DecayManager.EditorDecayRateRadiationPressure(CalculateMass(), CalculateArea(), ReferenceBody.Radius + AltitudeValue, 0, ReferenceBody) * ResEff * Settings.ReadResourceRateDifficulty())) / (60 * 60 * HoursInDay));
+                                Lifetime = Lifetime + pro.totalResourceCapacity / (DecayManager.EditorDecayRateRadiationPressure(CalculateMass(), CalculateArea(), ReferenceBody.Radius + AltitudeValue, 0, ReferenceBody) * ResEff * Settings.ReadResourceRateDifficulty()) / (60 * 60 * HoursInDay);
 
                             }
                         }

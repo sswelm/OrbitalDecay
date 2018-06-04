@@ -25,12 +25,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UnityEngine;
-using KSP.IO;
 
-namespace WhitecatIndustries
+namespace WhitecatIndustries.Source
 {
 
     public class StationKeepingManager : MonoBehaviour
@@ -65,23 +62,17 @@ namespace WhitecatIndustries
                     {
                         if (PPMS.moduleName.Contains("ModuleEngines")) // 1.5.0 Part Module Fixes
                         {
-                            if (bool.Parse(PPMS.moduleValues.GetValue("EngineIgnited"))) //Lets use this, adds an interesting element to engine igniter games. 
-                            {
-                                HasEngine = true;
-                                break;
-                            }
+                            if (!bool.Parse(PPMS.moduleValues.GetValue("EngineIgnited"))) continue;
+                            HasEngine = true;
+                            break;
                         }
-                        else if(PPMS.moduleName.Contains("ModuleRCS"))
-                        {
-                            if (bool.Parse(PPMS.moduleValues.GetValue("rcsEnabled"))) // doesnt seem to have an effect. 
-                            {
-                                HasEngine = true;
-                                break;
-                            }
-                        }
+                        if (!PPMS.moduleName.Contains("ModuleRCS")) continue;
+                        if (!bool.Parse(PPMS.moduleValues.GetValue("rcsEnabled"))) continue;
+                        HasEngine = true;
+                        break;
                     }
 
-                    if (HasEngine == true)
+                    if (HasEngine)
                     {
                         break;
                     }
@@ -92,10 +83,6 @@ namespace WhitecatIndustries
                 if (vessel.FindPartModulesImplementing<ModuleEngines>().Count > 0 || vessel.FindPartModulesImplementing<ModuleRCS>().Count > 0)
                 {
                     HasEngine = true;
-                }
-                else
-                {
-                    HasEngine = false;
                 }
             }
 
@@ -111,11 +98,11 @@ namespace WhitecatIndustries
             double ResourceEfficiency = VesselData.FetchEfficiency(vessel);// effi calculation based on vessel engine ISP stored in stationKeepData.ISP NEED ballance
             double LostFuel = 0.0;
 
-            LostFuel = Math.Abs((DecayManager.DecayRateAtmosphericDrag(vessel) + DecayManager.DecayRateRadiationPressure(vessel) + DecayManager.DecayRateYarkovskyEffect(vessel))) * Settings.ReadResourceRateDifficulty() * ResourceEfficiency; // * Fuel Multiplier
+            LostFuel = Math.Abs(DecayManager.DecayRateAtmosphericDrag(vessel) + DecayManager.DecayRateRadiationPressure(vessel) + DecayManager.DecayRateYarkovskyEffect(vessel)) * Settings.ReadResourceRateDifficulty() * ResourceEfficiency; // * Fuel Multiplier
 
             double FuelNew = CurrentFuel - LostFuel;
 
-            /// Remote tech compatibility - 1.6.0 /// 
+            // Remote tech compatibility - 1.6.0 // 
             bool RemoteTechInstalled = LoadingCheck.RemoteTechInstalled;
             bool SignalCheck = false;
             bool ConnectionToVessel = true;
@@ -138,28 +125,25 @@ namespace WhitecatIndustries
                 SignalCheck = true;
             }
 
-            if (SignalCheck == true)
+            if (!SignalCheck) return;
+            if (EngineCheck(vessel) == false) // 1.3.0
             {
+                ScreenMessages.PostScreenMessage("Warning: " + vessel.vesselName + " has no operational Engines or RCS modules, Station Keeping disabled.");
+                VesselData.UpdateStationKeeping(vessel, false);
+            }
 
-                if (EngineCheck(vessel) == false) // 1.3.0
+            else if (EngineCheck(vessel))
+            {
+                if (FuelNew <= 0)
                 {
-                    ScreenMessages.PostScreenMessage("Warning: " + vessel.vesselName + " has no operational Engines or RCS modules, Station Keeping disabled.");
+                    ScreenMessages.PostScreenMessage("Warning: " + vessel.vesselName + " has run out of " + ResourceName + ", Station Keeping disabled.");
                     VesselData.UpdateStationKeeping(vessel, false);
+                    VesselData.UpdateVesselFuel(vessel, 0);
                 }
-
-                else if (EngineCheck(vessel) == true)
+                else
                 {
-                    if (FuelNew <= 0)
-                    {
-                        ScreenMessages.PostScreenMessage("Warning: " + vessel.vesselName + " has run out of " + ResourceName + ", Station Keeping disabled.");
-                        VesselData.UpdateStationKeeping(vessel, false);
-                        VesselData.UpdateVesselFuel(vessel, 0);
-                    }
-                    else
-                    {
-                        VesselData.UpdateVesselFuel(vessel, FuelNew);
-                        ResourceManager.RemoveResources(vessel, LostFuel);
-                    }
+                    VesselData.UpdateVesselFuel(vessel, FuelNew);
+                    ResourceManager.RemoveResources(vessel, LostFuel);
                 }
             }
         }

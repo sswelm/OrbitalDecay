@@ -23,15 +23,9 @@
  * is purely coincidental.
  */
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UnityEngine;
-using KSP.IO;
 
-
-namespace WhitecatIndustries
+namespace WhitecatIndustries.Source
 {
     [KSPAddon(KSPAddon.Startup.EveryScene,false)]
     public class Settings : MonoBehaviour
@@ -56,7 +50,7 @@ namespace WhitecatIndustries
         {
             if (HighLogic.LoadedSceneIsGame)
             {
-                if (GameSettings.ORBIT_DRIFT_COMPENSATION == true)
+                if (GameSettings.ORBIT_DRIFT_COMPENSATION)
                 {
                     GameSettings.ORBIT_DRIFT_COMPENSATION = false;
                 }

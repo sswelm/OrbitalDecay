@@ -1,0 +1,93 @@
+﻿<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{5A0A1C2D-253B-465C-9A10-D65377235BBF}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <NoStandardLibraries>false</NoStandardLibraries>
+    <AssemblyName>OrbitalDecay</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace>WhitecatIndustries</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\SteamApps\common\Kerbal Space Program\KSP_x64_Data\Managed\Assembly-CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="SCS, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>bin\Release\SCS.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Core" />
+    <Reference Include="UnityEngine">
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\SteamApps\common\Kerbal Space Program\KSP_x64_Data\Managed\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\SteamApps\common\Kerbal Space Program\KSP_x64_Data\Managed\UnityEngine.UI.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Source\DecayManager.cs" />
+    <Compile Include="Source\EditorUserInterface.cs" />
+    <Compile Include="Source\LoadingCheck.cs" />
+    <Compile Include="Source\MasConData.cs" />
+    <Compile Include="Source\MasConManager.cs" />
+    <Compile Include="Source\ModuleOrbitalDecay.cs" />
+    <Compile Include="Source\NBodyConicsManager.cs" />
+    <Compile Include="Source\NBodyManager.cs" />
+    <Compile Include="Source\ODScenarioModule.cs" />
+    <Compile Include="Source\OrbitalDecayUtilities.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Source\ResourceManager.cs" />
+    <Compile Include="Source\Settings.cs" />
+    <Compile Include="Source\StationKeepingManager.cs" />
+    <Compile Include="Source\UserInterface.cs" />
+    <Compile Include="Source\VesselData.cs" />
+    <Compile Include="Source\YarkovskyEffect.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Distribution\ChangeLog.txt" />
+    <Content Include="Distribution\OrbitalDecay1.6.0%28NbodyTests%29.dll" />
+    <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\Icon\IconToolbar.png" />
+    <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\License.txt" />
+    <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\plugins\OrbitalDecay.dll" />
+    <Content Include="Distribution\ReleaseNotes.txt" />
+    <Content Include="Distribution\GameData\WhitecatIndustries\SCS\Changelog.txt" />
+    <Content Include="Distribution\GameData\WhitecatIndustries\SCS\Icons\Icon.png" />
+    <Content Include="Distribution\GameData\WhitecatIndustries\SCS\SCS.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include=".gitignore" />
+    <None Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\OrbitalDecay.version" />
+    <None Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\Configs\OrbitalDecay.cfg" />
+    <None Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\plugins\PluginData\MasConData.cfg" />
+    <None Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\plugins\PluginData\Settings.cfg" />
+    <None Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\plugins\PluginData\VesselData.cfg" />
+    <None Include="Distribution\GameData\WhitecatIndustries\SCS\Plugins\PluginData\Data.cfg" />
+    <None Include="READ BEFORE UPLOADING" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSHARP.Targets" />
+  <ProjectExtensions>
+    <VisualStudio AllowExistingFolder="true" />
+  </ProjectExtensions>
+</Project>

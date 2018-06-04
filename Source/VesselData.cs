@@ -26,11 +26,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using UnityEngine;
-using KSP.IO;
 
-namespace WhitecatIndustries
+namespace WhitecatIndustries.Source
 {
     [KSPAddon(KSPAddon.Startup.EveryScene, false)]
     public class VesselData : MonoBehaviour
@@ -41,13 +39,13 @@ namespace WhitecatIndustries
 
         public static double EndSceneWaitTime = 0;
         public static double StartSceneWaitTime = 0;
-        public static bool VesselMovementUpdate = false;
-        public static bool VesselMoving = false;
+        public static bool VesselMovementUpdate;
+        public static bool VesselMoving;
         public static bool VesselsLoaded = false;
-        public static double TimeOfLastMovement = 0.0;
+        public static double TimeOfLastMovement;
         public static bool ClearedOld = false;
         private float UPTInterval = 1.0f;
-        private float lastUpdate = 0.0f;
+        private float lastUpdate;
 
         public void Awake()
         {
@@ -90,20 +88,20 @@ namespace WhitecatIndustries
        
         public void FixedUpdate()
         {
-            if (Time.timeSinceLevelLoad > 1 && VesselsLoaded == true)
+            if (Time.timeSinceLevelLoad > 1 && VesselsLoaded)
             {
-                if ((Time.time - lastUpdate) > UPTInterval) // 1.4.0 Lag Busting
+                if (Time.time - lastUpdate > UPTInterval) // 1.4.0 Lag Busting
                 {
                     lastUpdate = Time.time;
 
-                    if (HighLogic.LoadedSceneIsGame && (HighLogic.LoadedScene != GameScenes.LOADING && HighLogic.LoadedScene != GameScenes.LOADINGBUFFER && HighLogic.LoadedScene != GameScenes.MAINMENU))
+                    if (HighLogic.LoadedSceneIsGame && HighLogic.LoadedScene != GameScenes.LOADING && HighLogic.LoadedScene != GameScenes.LOADINGBUFFER && HighLogic.LoadedScene != GameScenes.MAINMENU)
                     {
                         Vessel vessel = new Vessel();
                         for (int i = 0; i < FlightGlobals.Vessels.Count; i++)
                         {
                             vessel = FlightGlobals.Vessels.ElementAt(i);
                             {
-                                if (CheckIfContained(vessel) == true)
+                                if (CheckIfContained(vessel))
                                 {
                                    if (vessel.situation == Vessel.Situations.ORBITING || vessel.situation == Vessel.Situations.SUB_ORBITAL)
                                     {
@@ -128,7 +126,7 @@ namespace WhitecatIndustries
         {
             if (DecayManager.CheckSceneStateMain(HighLogic.LoadedScene))
             {
-                if ((Planetarium.GetUniversalTime() == HighLogic.CurrentGame.UniversalTime) || HighLogic.LoadedScene == GameScenes.FLIGHT)
+                if (Planetarium.GetUniversalTime() == HighLogic.CurrentGame.UniversalTime || HighLogic.LoadedScene == GameScenes.FLIGHT)
                 {
                     print("WhitecatIndustries - Orbital Decay - Vessel Information saved. Ondestroy");
                     File.ClearNodes();
@@ -142,7 +140,7 @@ namespace WhitecatIndustries
         {
             if (DecayManager.CheckSceneStateMain(HighLogic.LoadedScene))
             {
-                if ((Planetarium.GetUniversalTime() == HighLogic.CurrentGame.UniversalTime) || HighLogic.LoadedScene == GameScenes.FLIGHT)
+                if (Planetarium.GetUniversalTime() == HighLogic.CurrentGame.UniversalTime || HighLogic.LoadedScene == GameScenes.FLIGHT)
                 {
                     print("WhitecatIndustries - Orbital Decay - Vessel Information saved.");
                     File.ClearNodes();
@@ -183,7 +181,7 @@ namespace WhitecatIndustries
                 VesselInformation.AddNode(vesselData);
             }
 
-            if (CheckIfContained(vessel) == true)
+            if (CheckIfContained(vessel))
             {
                 if (vessel == FlightGlobals.ActiveVessel)
                 {
@@ -198,7 +196,7 @@ namespace WhitecatIndustries
                         VesselMoving = false;
                     }
 
-                    if (VesselMoving == false && (HighLogic.CurrentGame.UniversalTime - TimeOfLastMovement) < 1 && VesselMovementUpdate == false)
+                    if (VesselMoving == false && HighLogic.CurrentGame.UniversalTime - TimeOfLastMovement < 1 && VesselMovementUpdate == false)
                     {
                         UpdateVesselSMA(vessel, vessel.orbitDriver.orbit.semiMajorAxis);
                         UpdateVesselECC(vessel, vessel.orbitDriver.orbit.eccentricity);
@@ -231,11 +229,11 @@ namespace WhitecatIndustries
             }
             
 
-            if (found == true)
+            if (found)
             {
                 VesselNode.SetValue("Mass", (vessel.GetTotalMass() * 1000).ToString());
                 
-                VesselNode.SetValue("Area", (CalculateVesselArea(vessel)).ToString());
+                VesselNode.SetValue("Area", CalculateVesselArea(vessel).ToString());
             }
         }
 
@@ -254,7 +252,7 @@ namespace WhitecatIndustries
                 
             }
 
-            if (found == true)
+            if (found)
             {
                 VesselInformation.RemoveNode(VesselNode);
             }
@@ -272,12 +270,12 @@ namespace WhitecatIndustries
             if (vessel == FlightGlobals.ActiveVessel)
             {
                 newVessel.AddValue("Mass", (vessel.GetTotalMass() * 1000).ToString()); // 1.1.0 in kilograms!
-                newVessel.AddValue("Area", (CalculateVesselArea(vessel)).ToString()); // Try?
+                newVessel.AddValue("Area", CalculateVesselArea(vessel).ToString()); // Try?
             }
             else
             {
                 newVessel.AddValue("Mass", (vessel.GetTotalMass() * 1000).ToString()); // getTotalMass returns bullshit for unloaded vessels.
-                newVessel.AddValue("Area", (CalculateVesselArea(vessel)).ToString()); // Still getting bugs here
+                newVessel.AddValue("Area", CalculateVesselArea(vessel).ToString()); // Still getting bugs here
             }
             newVessel.AddValue("ReferenceBody", vessel.orbitDriver.orbit.referenceBody.GetName());
             newVessel.AddValue("SMA", vessel.GetOrbitDriver().orbit.semiMajorAxis);
@@ -369,7 +367,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     Mass = double.Parse(Vessel.GetValue("Mass"));
                     break;
@@ -393,7 +391,7 @@ namespace WhitecatIndustries
                            Vesselfound = true;
                        }
 
-                       if (Vesselfound == true)
+                       if (Vesselfound)
                        {
                            Area = double.Parse(Vessel.GetValue("Area"));
                            break;
@@ -443,7 +441,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     Vessel.SetValue("SMA", SMA.ToString());
                     break;
@@ -465,7 +463,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     SMA = double.Parse(Vessel.GetValue("SMA"));
                     break;
@@ -493,7 +491,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     Vessel.SetValue("ECC", ECC.ToString());
                     break;
@@ -515,7 +513,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     ECC = double.Parse(Vessel.GetValue("ECC"));
                     break;
@@ -541,7 +539,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     Vessel.SetValue("INC", INC.ToString());
                     break;
@@ -563,7 +561,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     INC = double.Parse(Vessel.GetValue("INC"));
                     break;
@@ -586,7 +584,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     Vessel.SetValue("LPE", LPE.ToString());
                     break;
@@ -608,7 +606,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     LPE = double.Parse(Vessel.GetValue("LPE"));
                     break;
@@ -631,7 +629,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     Vessel.SetValue("LAN", LAN.ToString());
                     break;
@@ -653,7 +651,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     LAN = double.Parse(Vessel.GetValue("LAN"));
                     break;
@@ -676,7 +674,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     Vessel.SetValue("MNA", MNA.ToString());
                     break;
@@ -698,7 +696,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     MNA = double.Parse(Vessel.GetValue("MNA"));
                     break;
@@ -721,7 +719,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     Vessel.SetValue("EPH", EPH.ToString());
                     break;
@@ -743,7 +741,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     EPH = double.Parse(Vessel.GetValue("EPH"));
                     break;
@@ -811,7 +809,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     Vessel.SetValue("ReferenceBody", body.GetName());
                     break;
@@ -832,7 +830,7 @@ namespace WhitecatIndustries
                     Vesselfound = true;
                 }
 
-                if (Vesselfound == true)
+                if (Vesselfound)
                 {
                     Vessel.SetValue("Fuel", Fuel.ToString());
                     break;
@@ -860,7 +858,7 @@ namespace WhitecatIndustries
                 }
                 else
                 {
-                    Area = Area + (part.partInfo.partSize * 2.0 * Math.PI);
+                    Area = Area + part.partInfo.partSize * 2.0 * Math.PI;
                 }
             }
 

@@ -26,39 +26,38 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using Expansions.Missions.Editor;
 using UnityEngine;
-using KSP.IO;
 
-namespace WhitecatIndustries
+namespace WhitecatIndustries.Source
 {
     [KSPAddon(KSPAddon.Startup.EveryScene, false)]
     public class DecayManager : MonoBehaviour
     {
         #region Declared Variables
 
-        private float UPTInterval = 1.0f;
-        private float lastUpdate = 0.0f;
-        private float lastUpdaten = 0.0f;
-        private float lastUpdate2 = 0.0f;
+        private float _uptInterval = 1.0f;
+        private float _lastUpdate;
+        private float _lastUpdaten = 0.0f;
+        private float _lastUpdate2 = 0.0f;
 
         public static double DecayValue;
         public static double MaxDecayValue;
-        public static bool VesselDied = false;
+        public static bool VesselDied;
         public static float EstimatedTimeUntilDeorbit;
-        public static bool GUIToggled = false;
+        public static bool GuiToggled;
         public static Dictionary<Vessel, bool> MessageDisplayed = new Dictionary<Vessel, bool>();
-        public static double VesselCount = 0;
+        public static double VesselCount;
         public static Vessel ActiveVessel = new Vessel();
-        public static bool ActiveVesselOnOrbit = false;
-        public static bool EVAActive = false;
+        public static bool ActiveVesselOnOrbit;
+        public static bool EvaActive = false;
 
-        public static bool CatchupResourceMassAreaDataComplete = false;
+        public static bool CatchupResourceMassAreaDataComplete;
 
-        public static bool QuickloadKeyDown = false;
+        public static bool QuickloadKeyDown;
         public static KeyCode QuickloadKeyWindows = KeyCode.F9;
         public static KeyCode QuickloadKeyMac = KeyCode.F6;
-        public static float UpdateTimer = 0.0f;
+        public static float UpdateTimer;
 
         #endregion
 
@@ -66,39 +65,55 @@ namespace WhitecatIndustries
 
         public void Start()
         {
-            if (HighLogic.LoadedSceneIsGame && (HighLogic.LoadedScene != GameScenes.LOADING && HighLogic.LoadedScene != GameScenes.LOADINGBUFFER && HighLogic.LoadedScene != GameScenes.MAINMENU))
+            if (!HighLogic.LoadedSceneIsGame || HighLogic.LoadedScene == GameScenes.LOADING || HighLogic.LoadedScene == GameScenes.LOADINGBUFFER || HighLogic.LoadedScene == GameScenes.MAINMENU) return;
+            CatchupResourceMassAreaDataComplete = false;
+            // GameEvents -- //
+
+            GameEvents.onVesselWillDestroy.Add(ClearVesselOnDestroy); // Vessel destroy checks 1.1.0
+            GameEvents.onVesselWasModified.Add(UpdateActiveVesselInformation); // Resource level change 1.3.0
+            GameEvents.onStageSeparation.Add(UpdateActiveVesselInformationEventReport); // Resource level change 1.3.0
+            GameEvents.onNewVesselCreated.Add(UpdateVesselSpawned); // New Vessel Checks 1.4.2
+
+            //GameEvents.onTimeWarpRateChanged.Add(NBodyManager.TimewarpShift); // Timewarp checks for 1.6.0
+
+            if (HighLogic.LoadedScene == GameScenes.FLIGHT)//CheckSceneStateFlight(HighLogic.LoadedScene)) // 1.3.1
             {
-                CatchupResourceMassAreaDataComplete = false;
-                // GameEvents -- //
+                GameEvents.onPartActionUIDismiss.Add(UpdateActiveVesselInformationPart); // Resource level change 1.3.0
+                GameEvents.onPartActionUIDismiss.Add(SetGuiToggledFalse);
+                GameEvents.onPartActionUICreate.Add(UpdateActiveVesselInformationPart);
+            }
 
-                GameEvents.onVesselWillDestroy.Add(ClearVesselOnDestroy); // Vessel destroy checks 1.1.0
-                GameEvents.onVesselWasModified.Add(UpdateActiveVesselInformation); // Resource level change 1.3.0
-                GameEvents.onStageSeparation.Add(UpdateActiveVesselInformationEventReport); // Resource level change 1.3.0
-                GameEvents.onNewVesselCreated.Add(UpdateVesselSpawned); // New Vessel Checks 1.4.2
+            // -- GameEvents //
+            CatchUpVessels(Vessel.Situations.ORBITING, Vessel.Situations.SUB_ORBITAL);   // 1.4.2
+        }
 
-                //GameEvents.onTimeWarpRateChanged.Add(NBodyManager.TimewarpShift); // Timewarp checks for 1.6.0
-
-                if (HighLogic.LoadedScene == GameScenes.FLIGHT)//CheckSceneStateFlight(HighLogic.LoadedScene)) // 1.3.1
+        internal static void CatchUpVessels(Vessel.Situations situation)
+        {
+            IEnumerator<Vessel> vessels = FlightGlobals.Vessels.AsEnumerable().GetEnumerator();
+            while (vessels.MoveNext())
+            {
+                if (vessels.Current == null) continue;
+                if (vessels.Current.situation == situation)
                 {
-                    GameEvents.onPartActionUIDismiss.Add(UpdateActiveVesselInformationPart); // Resource level change 1.3.0
-                    GameEvents.onPartActionUIDismiss.Add(SetGUIToggledFalse);
-                    GameEvents.onPartActionUICreate.Add(UpdateActiveVesselInformationPart);
-                }
-
-                // -- GameEvents //
-
-                Vessel vessel = new Vessel();
-                VesselCount = FlightGlobals.Vessels.Count;
-                for (int i = 0; i < FlightGlobals.Vessels.Count; i++)
-                {
-                    vessel = FlightGlobals.Vessels.ElementAt(i);
-
-                        if (vessel.situation == Vessel.Situations.ORBITING || vessel.situation == Vessel.Situations.SUB_ORBITAL) // 1.4.2
-                        {
-                                CatchUpOrbit(vessel);
-                        }
+                    CatchUpOrbit(vessels.Current);
                 }
             }
+            vessels.Dispose();
+        }
+
+        internal static void CatchUpVessels(Vessel.Situations situation1, Vessel.Situations situation2)
+        {
+            IEnumerator<Vessel> vessels = FlightGlobals.Vessels.AsEnumerable().GetEnumerator();
+            while (vessels.MoveNext())
+            {
+                if (vessels.Current == null) continue;
+                if (vessels.Current.situation == situation1 ||
+                    vessels.Current.situation == situation2)
+                {
+                    CatchUpOrbit(vessels.Current);
+                }
+            }
+            vessels.Dispose();
         }
 
         #region Update Subroutines
@@ -113,29 +128,23 @@ namespace WhitecatIndustries
 
         public void UpdateActiveVesselInformationPart(Part part) // Until eventdata OnPartResourceFlowState works! // 1.3.0
         {
-            if (part.vessel == FlightGlobals.ActiveVessel && TimeWarp.CurrentRate == 0) // 1.4.2 
-            {
-                if (HighLogic.LoadedScene == GameScenes.FLIGHT && GUIToggled == false) // 1.3.1
-                {
-                    VesselData.UpdateActiveVesselData(FlightGlobals.ActiveVessel);
-                    GUIToggled = true;
-                }
-            }
+            if (part.vessel != FlightGlobals.ActiveVessel || TimeWarp.CurrentRate != 0) return;
+            if (HighLogic.LoadedScene != GameScenes.FLIGHT || GuiToggled) return;
+            VesselData.UpdateActiveVesselData(FlightGlobals.ActiveVessel);
+            GuiToggled = true;
         }
 
-        public void SetGUIToggledFalse(Part part)
+        public void SetGuiToggledFalse(Part part)
         {
-            GUIToggled = false;
+            GuiToggled = false;
         }
 
         public void UpdateActiveVesselInformation(Vessel vessel)
         {
-            if (HighLogic.LoadedScene != GameScenes.EDITOR) // 1.6.0 Fixes VAB Rightclick errors
+            if (HighLogic.LoadedScene == GameScenes.EDITOR) return;
+            if (vessel == FlightGlobals.ActiveVessel)
             {
-                if (vessel == FlightGlobals.ActiveVessel)
-                {
-                    VesselData.UpdateActiveVesselData(vessel);
-                }
+                VesselData.UpdateActiveVesselData(vessel);
             }
         }
 
@@ -158,14 +167,14 @@ namespace WhitecatIndustries
 
             VesselData.VesselInformation.ClearNodes();
             print("WhitecatIndustries - Orbital Decay - Vessel Information lost OnQuickLoadUpdate");
-            string FilePath = KSPUtil.ApplicationRootPath + "GameData/WhitecatIndustries/Orbital Decay/Plugins/PluginData/VesselData.cfg";
-            ConfigNode FileM = new ConfigNode();
-            ConfigNode FileN = new ConfigNode("VESSEL");
-            FileN.AddValue("name", "WhitecatsDummyVessel");
-            FileN.AddValue("id", "000");
-            FileN.AddValue("persistence", "WhitecatsDummySaveFileThatNoOneShouldNameTheirSave");
-            FileM.AddNode(FileN);
-            VesselData.VesselInformation.AddNode(FileM);
+            string filePath = KSPUtil.ApplicationRootPath + "GameData/WhitecatIndustries/Orbital Decay/Plugins/PluginData/VesselData.cfg";
+            ConfigNode fileM = new ConfigNode();
+            ConfigNode fileN = new ConfigNode("VESSEL");
+            fileN.AddValue("name", "WhitecatsDummyVessel");
+            fileN.AddValue("id", "000");
+            fileN.AddValue("persistence", "WhitecatsDummySaveFileThatNoOneShouldNameTheirSave");
+            fileM.AddNode(fileN);
+            VesselData.VesselInformation.AddNode(fileM);
             VesselData.OnQuickSave();
 
         }
@@ -194,113 +203,60 @@ namespace WhitecatIndustries
 
         public static bool CheckSceneStateMainNotSpaceCentre(GameScenes scene)
         {
-            if (scene != GameScenes.LOADING && scene != GameScenes.LOADINGBUFFER && HighLogic.LoadedSceneIsGame && scene != GameScenes.SPACECENTER)
-            {
-                return true;
-            }
-
-            else
-            {
-                return false;
-            }
+            return scene != GameScenes.LOADING && scene != GameScenes.LOADINGBUFFER && HighLogic.LoadedSceneIsGame && scene != GameScenes.SPACECENTER;
         }
 
         public static bool CheckSceneStateFlight(GameScenes scene)
         {
-            if (scene == GameScenes.FLIGHT && (scene != GameScenes.LOADING && scene != GameScenes.LOADINGBUFFER && HighLogic.LoadedSceneIsGame))
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return scene == GameScenes.FLIGHT && scene != GameScenes.LOADING && scene != GameScenes.LOADINGBUFFER && HighLogic.LoadedSceneIsGame;
         }
 
         public static bool CheckVesselState(Vessel vessel)
         {
-            if (vessel.situation == Vessel.Situations.ORBITING)
-            {
-                return true;
-            }
-
-            else
-            {
-                return false;
-            }
+            return vessel.situation == Vessel.Situations.ORBITING;
         }
 
         public static bool CheckVesselStateOrbEsc(Vessel vessel)
         {
-            if (vessel.situation == Vessel.Situations.ORBITING)
-            {
-                return true;
-            }
-
-            else
-            {
-                return false;
-            }
+            return vessel.situation == Vessel.Situations.ORBITING;
         }
 
         public static bool CheckVesselStateActive(Vessel vessel)
         {
-            if (vessel.situation == Vessel.Situations.ORBITING && vessel == FlightGlobals.ActiveVessel)
-            {
-                return true;
-            }
-
-            else
-            {
-                return false;
-            }
+            return vessel.situation == Vessel.Situations.ORBITING && vessel == FlightGlobals.ActiveVessel;
         }
 
         public static bool CheckVesselActiveInScene(Vessel vessel)
         {
-            if (vessel.situation == Vessel.Situations.ORBITING && vessel == FlightGlobals.ActiveVessel)
-            {
-                return true;
-            }
-
-            else
-            {
-                return false;
-            }
+            return vessel.situation == Vessel.Situations.ORBITING && vessel == FlightGlobals.ActiveVessel;
         }
 
         public static bool CheckVesselProximity(Vessel vessel)
         {
             bool close = false;
 
-            if (HighLogic.LoadedSceneIsFlight)
+            if (!HighLogic.LoadedSceneIsFlight) return close;
+            double distance;
+            try
             {
-                double Distance = 0;
-                try
-                {
-                    Distance = Vector3d.Distance(vessel.GetWorldPos3D(), FlightGlobals.ActiveVessel.GetWorldPos3D());
-                }
-                catch (NullReferenceException)
-                {
-                    Distance = 100001;
-                }
+                distance = Vector3d.Distance(vessel.GetWorldPos3D(), FlightGlobals.ActiveVessel.GetWorldPos3D());
+            }
+            catch (NullReferenceException)
+            {
+                distance = 100001;
+            }
 
-                if (Distance < 100000)
-                {
-                    close = true;
-                }
+            if (distance < 100000)
+            {
+                close = true;
+            }
 
-                if (vessel == FlightGlobals.ActiveVessel)
-                {
-                    foreach (Vessel v in FlightGlobals.Vessels)
-                    {
-                        if (!v.packed && v != vessel) // && (v.vesselType == VesselType.EVA || v.vesselType == VesselType.Debris)) maybe if !V.packed?
-                        {
-                            close = true;
-                            break;
-                        }
-                    }
-                }      
+            if (vessel != FlightGlobals.ActiveVessel) return close;
+            foreach (Vessel v in FlightGlobals.Vessels)
+            {
+                if (v.packed || v == vessel) continue;
+                close = true;
+                break;
             }
 
             return close;
@@ -310,12 +266,12 @@ namespace WhitecatIndustries
 
         public void FixedUpdate()
         {
-            if ((Time.time - lastUpdate2) > UPTInterval / 10.0)
+            if (Time.time - _lastUpdate2 > _uptInterval / 10.0)
             {
 
                 if (Input.GetKeyDown(QuickloadKeyWindows)) // Quick load request check
                 {
-                    UpdateTimer = UpdateTimer + (UPTInterval / 10.0f);
+                    UpdateTimer = UpdateTimer + _uptInterval / 10.0f;
 
                     if (UpdateTimer > 0.05f)
                     {
@@ -323,7 +279,7 @@ namespace WhitecatIndustries
                         UpdateTimer = 0.0f;
                     }
 
-                    if (QuickloadKeyDown == true)
+                    if (QuickloadKeyDown)
                     {
                         print("F9 Held");
                         QuickLoadUpdate();
@@ -376,116 +332,91 @@ namespace WhitecatIndustries
             }
              */
 
-            if (Time.timeSinceLevelLoad > 0.5)
+            if (!(Time.timeSinceLevelLoad > 0.5)) return;
+            if (!HighLogic.LoadedSceneIsGame || HighLogic.LoadedScene == GameScenes.LOADING || HighLogic.LoadedScene == GameScenes.LOADINGBUFFER || HighLogic.LoadedScene == GameScenes.MAINMENU) return;
+            if (!(Time.time - _lastUpdate > _uptInterval)) return;
+            _lastUpdate = Time.time;
+
+            if (HighLogic.LoadedScene != GameScenes.SPACECENTER && HighLogic.LoadedScene != GameScenes.TRACKSTATION &&
+                HighLogic.LoadedScene != GameScenes.FLIGHT) return;
+            for (int i = 0; i < FlightGlobals.Vessels.Count; i++)
             {
-                if (HighLogic.LoadedSceneIsGame && (HighLogic.LoadedScene != GameScenes.LOADING && HighLogic.LoadedScene != GameScenes.LOADINGBUFFER && HighLogic.LoadedScene != GameScenes.MAINMENU))
+                Vessel vessel = FlightGlobals.Vessels.ElementAt(i);
+
+                if (vessel.situation != Vessel.Situations.ORBITING &&
+                    (vessel.situation != Vessel.Situations.SUB_ORBITAL || vessel == FlightGlobals.ActiveVessel ||
+                     vessel != vessel.packed)) continue;
+                if (VesselData.FetchStationKeeping(vessel) == false)
                 {
-                    if ((Time.time - lastUpdate) > UPTInterval)
+                    if (VesselData.FetchSMA(vessel) > 0)
                     {
-                        lastUpdate = Time.time;
-
-                        if (HighLogic.LoadedScene == GameScenes.SPACECENTER || HighLogic.LoadedScene == GameScenes.TRACKSTATION || HighLogic.LoadedScene == GameScenes.FLIGHT)
+                        if (!vessel.packed)
                         {
-                            for (int i = 0; i < FlightGlobals.Vessels.Count; i++)
+                            if (Settings.ReadRD())
                             {
-                                Vessel vessel = FlightGlobals.Vessels.ElementAt(i);
-
-                                if ((vessel.situation == Vessel.Situations.ORBITING) || (vessel.situation == Vessel.Situations.SUB_ORBITAL && vessel != FlightGlobals.ActiveVessel && vessel == vessel.packed)) // Fixes teleporting debris
-                                {
-                                    if (VesselData.FetchStationKeeping(vessel) == false)
-                                    {
-                                        if (VesselData.FetchSMA(vessel) > 0)
-                                        {
-                                            if (!vessel.packed)
-                                            {
-                                                if (Settings.ReadRD() == true)
-                                                {
-                                                    ActiveDecayRealistic(vessel); // 1.2.0 Realistic Active Decay fixes
-                                                }
-                                                else
-                                                {
-                                                    ActiveDecayStock(vessel);
-                                                }
-                                            }
-                                            else
-                                            {
-                                                RealisticDecaySimulator(vessel);
-                                            }
-                                        }
-
-                                        if (HighLogic.LoadedScene == GameScenes.TRACKSTATION && Settings.ReadPT() == true)
-                                        {
-                                            if (Settings.ReadDT() == true)
-                                            {
-                                                CatchUpOrbit(vessel);
-                                            }
-                                            else if (Settings.ReadDT() == false && vessel.vesselType != VesselType.Debris)
-                                            {
-                                                CatchUpOrbit(vessel);
-                                            }
-                                            else
-                                            {
-                                            }
-                                        }
-                                    }
-                                    else
-                                    {
-                                        StationKeepingManager.FuelManager(vessel);
-                                    }
-                                }
+                                ActiveDecayRealistic(vessel); // 1.2.0 Realistic Active Decay fixes
+                            }
+                            else
+                            {
+                                ActiveDecayStock(vessel);
                             }
                         }
+                        else
+                        {
+                            RealisticDecaySimulator(vessel);
+                        }
                     }
+
+                    if (HighLogic.LoadedScene != GameScenes.TRACKSTATION || Settings.ReadPT() != true) continue;
+                    if (Settings.ReadDT())
+                    {
+                        CatchUpOrbit(vessel);
+                    }
+                    else if (Settings.ReadDT() == false && vessel.vesselType != VesselType.Debris)
+                    {
+                        CatchUpOrbit(vessel);
+                    }
+                    else
+                    {
+                    }
+                }
+                else
+                {
+                    StationKeepingManager.FuelManager(vessel);
                 }
             }
         }
 
         public void Save()
         {
-            if (HighLogic.LoadedSceneIsGame && HighLogic.LoadedScene != GameScenes.FLIGHT && (HighLogic.LoadedScene != GameScenes.LOADING || HighLogic.LoadedScene != GameScenes.LOADINGBUFFER && HighLogic.LoadedScene != GameScenes.MAINMENU)) // No Saving badly!
-            {
-                Vessel vessel = new Vessel();  // Set Vessel Orbits
-                for (int i = 0; i < FlightGlobals.Vessels.Count; i++)
-                {
-                    vessel = FlightGlobals.Vessels.ElementAt(i);
-                    //if ((vessel.vesselType != VesselType.SpaceObject && vessel.vesselType != VesselType.Unknown)) // 1.4.2 fixes
-                    if (vessel.situation == Vessel.Situations.ORBITING)
-                    {
-                        CatchUpOrbit(vessel);
-                    }
-                }
-            }
+            if (!HighLogic.LoadedSceneIsGame || HighLogic.LoadedScene == GameScenes.FLIGHT ||
+                HighLogic.LoadedScene == GameScenes.LOADING &&
+                (HighLogic.LoadedScene == GameScenes.LOADINGBUFFER ||
+                 HighLogic.LoadedScene == GameScenes.MAINMENU)) return;
+
+            // Set Vessel Orbits;
+            CatchUpVessels(Vessel.Situations.ORBITING);
         }
 
         public void OnDestroy()
         {
-            if (HighLogic.LoadedSceneIsGame && (HighLogic.LoadedScene != GameScenes.LOADING && HighLogic.LoadedScene != GameScenes.LOADINGBUFFER && HighLogic.LoadedScene != GameScenes.MAINMENU))
+            if (!HighLogic.LoadedSceneIsGame || HighLogic.LoadedScene == GameScenes.LOADING || HighLogic.LoadedScene == GameScenes.LOADINGBUFFER || HighLogic.LoadedScene == GameScenes.MAINMENU) return;
+            GameEvents.onVesselWillDestroy.Remove(ClearVesselOnDestroy);
+            GameEvents.onVesselWasModified.Remove(UpdateActiveVesselInformation); // 1.3.0 Resource Change
+            GameEvents.onStageSeparation.Remove(UpdateActiveVesselInformationEventReport); // 1.3.0
+            GameEvents.onNewVesselCreated.Remove(UpdateVesselSpawned); // 1.4.2 
+
+            //GameEvents.onTimeWarpRateChanged.Remove(NBodyManager.TimewarpShift); // 1.6.0 
+
+            if (HighLogic.LoadedScene == GameScenes.FLIGHT) // 1.3.1
             {
-                GameEvents.onVesselWillDestroy.Remove(ClearVesselOnDestroy);
-                GameEvents.onVesselWasModified.Remove(UpdateActiveVesselInformation); // 1.3.0 Resource Change
-                GameEvents.onStageSeparation.Remove(UpdateActiveVesselInformationEventReport); // 1.3.0
-                GameEvents.onNewVesselCreated.Remove(UpdateVesselSpawned); // 1.4.2 
-
-                //GameEvents.onTimeWarpRateChanged.Remove(NBodyManager.TimewarpShift); // 1.6.0 
-
-                if (HighLogic.LoadedScene == GameScenes.FLIGHT) // 1.3.1
-                {
-                    GameEvents.onPartActionUIDismiss.Remove(UpdateActiveVesselInformationPart); // 1.3.0
-                    GameEvents.onPartActionUIDismiss.Remove(SetGUIToggledFalse);
-                    GameEvents.onPartActionUICreate.Remove(UpdateActiveVesselInformationPart);
-                }
-
-                Vessel vessel = new Vessel();  // Set Vessel Orbits
-                VesselCount = FlightGlobals.Vessels.Count;
-                for (int i = 0; i < FlightGlobals.Vessels.Count; i++)
-                {
-                    vessel = FlightGlobals.Vessels.ElementAt(i);
-                        if (vessel.situation == Vessel.Situations.ORBITING)
-                        {
-                            CatchUpOrbit(vessel);
-                        }
-                }
+                GameEvents.onPartActionUIDismiss.Remove(UpdateActiveVesselInformationPart); // 1.3.0
+                GameEvents.onPartActionUIDismiss.Remove(SetGuiToggledFalse);
+                GameEvents.onPartActionUICreate.Remove(UpdateActiveVesselInformationPart);
             }
+
+            // Set Vessel Orbits
+            CatchUpVessels(Vessel.Situations.ORBITING);
         }
 
         #endregion
@@ -494,89 +425,78 @@ namespace WhitecatIndustries
 
         public void ActiveVesselOrbitManage()
         {
-             // Redundant in 1.1.0
-            
-            if (ActiveVesselOnOrbit == false)
-            {
-                if (FlightGlobals.ActiveVessel.situation == Vessel.Situations.ORBITING)
-                {
-                    ActiveVesselOnOrbit = true;
-                    VesselData.WriteVesselData(FlightGlobals.ActiveVessel);
-                }
-            }
-             
+            // Redundant in 1.1.0
+
+            if (ActiveVesselOnOrbit) return;
+            if (FlightGlobals.ActiveVessel.situation != Vessel.Situations.ORBITING) return;
+            ActiveVesselOnOrbit = true;
+            VesselData.WriteVesselData(FlightGlobals.ActiveVessel);
+
         } // Redundant in 1.1.0
 
         public static void CatchUpOrbit(Vessel vessel)
         {
-            if (vessel.situation != Vessel.Situations.PRELAUNCH && vessel.situation != Vessel.Situations.LANDED)
+            if (vessel.situation == Vessel.Situations.PRELAUNCH || vessel.situation == Vessel.Situations.LANDED) return;
+            if (!(VesselData.FetchSMA(vessel) < vessel.GetOrbitDriver().orbit.semiMajorAxis) ||
+                CheckVesselProximity(vessel)) return;
+            try
             {
-                if (VesselData.FetchSMA(vessel) < vessel.GetOrbitDriver().orbit.semiMajorAxis && CheckVesselProximity(vessel) == false)
+                OrbitPhysicsManager.HoldVesselUnpack(60);
+            }
+            catch (NullReferenceException)
+            {
+            }
+            for (int i = 0; i < FlightGlobals.Vessels.Count; i++)
+            {
+                Vessel ship = FlightGlobals.Vessels.ElementAt(i);
+                if (ship.packed)
                 {
-                    try
-                    {
-                        OrbitPhysicsManager.HoldVesselUnpack(60);
-                    }
-                    catch (NullReferenceException)
-                    {
-                    }
-                    for (int i = 0; i < FlightGlobals.Vessels.Count; i++)
-                    {
-                        Vessel ship = FlightGlobals.Vessels.ElementAt(i);
-                        if (ship.packed)
-                        {
-                            ship.GoOnRails();
-                        }
-                    }
-
-                    if (HighLogic.LoadedScene == GameScenes.FLIGHT && vessel.situation != Vessel.Situations.PRELAUNCH)
-                    {
-                        if (vessel = FlightGlobals.ActiveVessel)
-                        {
-                            vessel.GoOnRails();
-                        }
-                    }
-
-                    if (VesselData.FetchSMA(vessel) != 0)
-                    {
-                        var oldBody = vessel.orbitDriver.orbit.referenceBody;
-                        var orbit = vessel.orbitDriver.orbit;
-                        orbit.inclination = VesselData.FetchINC(vessel);
-                        orbit.eccentricity = VesselData.FetchECC(vessel);
-                        orbit.semiMajorAxis = VesselData.FetchSMA(vessel);
-                        orbit.LAN = VesselData.FetchLAN(vessel);
-                        orbit.argumentOfPeriapsis = VesselData.FetchLPE(vessel);
-                        //orbit.meanAnomalyAtEpoch = VesselData.FetchMNA(vessel);
-                        orbit.epoch = vessel.orbit.epoch;
-                        orbit.referenceBody = vessel.orbit.referenceBody;
-                        orbit.Init();
-
-                        orbit.UpdateFromUT(HighLogic.CurrentGame.UniversalTime);
-                        vessel.orbitDriver.pos = vessel.orbit.pos.xzy; // Possibly remove these for NBody
-                        vessel.orbitDriver.vel = vessel.orbit.vel; // Possibly remove these for NBody
-
-                        var newBody = vessel.orbitDriver.orbit.referenceBody;
-                        if (newBody != oldBody)
-                        {
-                            var evnt = new GameEvents.HostedFromToAction<Vessel, CelestialBody>(vessel, oldBody, newBody);
-                            GameEvents.onVesselSOIChanged.Fire(evnt);
-                            VesselData.UpdateBody(vessel, newBody);
-                        }
-                    }
+                    ship.GoOnRails();
                 }
             }
+
+            if (HighLogic.LoadedScene == GameScenes.FLIGHT && vessel.situation != Vessel.Situations.PRELAUNCH)
+            {
+                if (vessel == FlightGlobals.ActiveVessel)
+                {
+                    vessel.GoOnRails();
+                }
+            }
+
+            if (VesselData.FetchSMA(vessel) == 0) return;
+            CelestialBody oldBody = vessel.orbitDriver.orbit.referenceBody;
+            Orbit orbit = vessel.orbitDriver.orbit;
+            orbit.inclination = VesselData.FetchINC(vessel);
+            orbit.eccentricity = VesselData.FetchECC(vessel);
+            orbit.semiMajorAxis = VesselData.FetchSMA(vessel);
+            orbit.LAN = VesselData.FetchLAN(vessel);
+            orbit.argumentOfPeriapsis = VesselData.FetchLPE(vessel);
+            //orbit.meanAnomalyAtEpoch = VesselData.FetchMNA(vessel);
+            orbit.epoch = vessel.orbit.epoch;
+            orbit.referenceBody = vessel.orbit.referenceBody;
+            orbit.Init();
+
+            orbit.UpdateFromUT(HighLogic.CurrentGame.UniversalTime);
+            vessel.orbitDriver.pos = vessel.orbit.pos.xzy; // Possibly remove these for NBody
+            vessel.orbitDriver.vel = vessel.orbit.vel; // Possibly remove these for NBody
+
+            CelestialBody newBody = vessel.orbitDriver.orbit.referenceBody;
+            if (newBody == oldBody) return;
+            GameEvents.HostedFromToAction<Vessel, CelestialBody> evnt = new GameEvents.HostedFromToAction<Vessel, CelestialBody>(vessel, oldBody, newBody);
+            GameEvents.onVesselSOIChanged.Fire(evnt);
+            VesselData.UpdateBody(vessel, newBody);
         } // Main Orbit Set
 
         #endregion 
 
         #region Misc Calculation Subroutines
 
-        public static double CalculateNewEccentricity(double OldEccentricity, double OldSMA, double NewSMA) // 1.4.0 needs balancing maybe
+        public static double CalculateNewEccentricity(double oldEccentricity, double oldSma, double newSma) // 1.4.0 needs balancing maybe
         {
-            double NewEccentricity = 0.0;
-            double FixedSemiMinorAxis = OldSMA * Math.Sqrt(1.0 - (Math.Pow(OldEccentricity, 2.0)));
-            NewEccentricity = Math.Sqrt(1.0 - ((Math.Pow(FixedSemiMinorAxis, 2.0)) / Math.Pow((NewSMA), 2.0))); //
-            return NewEccentricity;
+            double newEccentricity = 0.0;
+            double fixedSemiMinorAxis = oldSma * Math.Sqrt(1.0 - Math.Pow(oldEccentricity, 2.0));
+            newEccentricity = Math.Sqrt(1.0 - Math.Pow(fixedSemiMinorAxis, 2.0) / Math.Pow(newSma, 2.0)); //
+            return newEccentricity;
         }
 
         #endregion
@@ -585,28 +505,23 @@ namespace WhitecatIndustries
 
         public static bool CheckReferenceBody(Vessel vessel) // 1.6.0 Body Checks
         {
-            bool ValidBody = false;
+            bool validBody = false;
             CelestialBody body = vessel.orbitDriver.orbit.referenceBody;
 
             if (body.Radius < 1095700000) // Checks the body radius (prevents issues with Galacitc Cores.. hopefully)
             {
-                ValidBody = true;
+                validBody = true;
             }
 
-            return ValidBody;
+            return validBody;
 
         }
 
         public static bool CheckNBodyAltitude(Vessel vessel)
         {
-            bool BeyondSafeArea = false;
+            bool beyondSafeArea = Math.Abs(vessel.orbitDriver.orbit.altitude) > 2.0 * vessel.orbitDriver.orbit.referenceBody.Radius;
 
-            if (Math.Abs(vessel.orbitDriver.orbit.altitude) > (2.0 * vessel.orbitDriver.orbit.referenceBody.Radius))
-            {
-                BeyondSafeArea = true;
-            }
-
-            return BeyondSafeArea;
+            return beyondSafeArea;
         }
 
 
@@ -639,26 +554,24 @@ namespace WhitecatIndustries
                 }
             }
 
-            if (CheckReferenceBody(vessel))
+            if (!CheckReferenceBody(vessel)) return;
+            RealisticGravitationalPertubationDecay(vessel); // 1.5.0
+            RealisticRadiationDragDecay(vessel); // 1.5.0 Happens everywhere now
+            RealisticYarkovskyEffectDecay(vessel); // 1.5.0 // Partial, full for 1.6.0
+
+            if (body.atmosphere)
             {
-                RealisticGravitationalPertubationDecay(vessel); // 1.5.0
-                RealisticRadiationDragDecay(vessel); // 1.5.0 Happens everywhere now
-                RealisticYarkovskyEffectDecay(vessel); // 1.5.0 // Partial, full for 1.6.0
-
-                if (body.atmosphere)
+                if (Settings.ReadRD())
                 {
-                    if (Settings.ReadRD() == true)
-                    {
-                        RealisticAtmosphericDragDecay(vessel);
-                    }
-                    else
-                    {
-                        StockAtmosphericDragDecay(vessel);
-                    }
+                    RealisticAtmosphericDragDecay(vessel);
                 }
-
-                CheckVesselSurvival(vessel);
+                else
+                {
+                    StockAtmosphericDragDecay(vessel);
+                }
             }
+
+            CheckVesselSurvival(vessel);
         }
         #endregion
 
@@ -669,73 +582,71 @@ namespace WhitecatIndustries
             Orbit orbit = vessel.orbitDriver.orbit;
             CelestialBody body = orbit.referenceBody;
 
-                double InitialSemiMajorAxis = VesselData.FetchSMA(vessel);
-                double MaxInfluence = body.Radius * 1.5;
+                double initialSemiMajorAxis = VesselData.FetchSMA(vessel);
+                double maxInfluence = body.Radius * 1.5;
 
-                if (InitialSemiMajorAxis < MaxInfluence)
-                {
-                    double StandardGravitationalParameter = body.gravParameter;
-                    double CartesianPositionVectorMagnitude = orbit.getRelativePositionAtT(HighLogic.CurrentGame.UniversalTime).magnitude; // Planetarium to HighLogic
-                    double EquivalentAltitude = (InitialSemiMajorAxis - body.Radius);
+            if (!(initialSemiMajorAxis < maxInfluence)) return;
+            double standardGravitationalParameter = body.gravParameter;
+            double cartesianPositionVectorMagnitude = orbit.getRelativePositionAtT(HighLogic.CurrentGame.UniversalTime).magnitude; // Planetarium to HighLogic
+            double equivalentAltitude = initialSemiMajorAxis - body.Radius;
 
-                    // Eccentricity updating
-                    double NewEccentricity = VesselData.FetchECC(vessel);
-                    // Still having problems here!
-                    // NewEccentricity = CalculateNewEccentricity(VesselData.FetchECC(vessel), InitialSemiMajorAxis, (InitialSemiMajorAxis - (DecayRateRealistic(vessel) / 10)));
-                    VesselData.UpdateVesselECC(vessel, NewEccentricity);
+            // Eccentricity updating
+            double newEccentricity = VesselData.FetchECC(vessel);
+            // Still having problems here!
+            // NewEccentricity = CalculateNewEccentricity(VesselData.FetchECC(vessel), InitialSemiMajorAxis, (InitialSemiMajorAxis - (DecayRateRealistic(vessel) / 10)));
+            VesselData.UpdateVesselECC(vessel, newEccentricity);
 
-                    double Eccentricity = NewEccentricity;
+            double eccentricity = newEccentricity;
 
-                    if (Eccentricity > 0.085)
-                    {
-                        double AltitudeAp = (InitialSemiMajorAxis * (1 + Eccentricity) - body.Radius);
-                        double AltitudePe = (InitialSemiMajorAxis * (1 - Eccentricity) - body.Radius);
-                        EquivalentAltitude = (AltitudePe) + 900.0 * Math.Pow(Eccentricity, (double)0.6);
-                    }
+            if (eccentricity > 0.085)
+            {
+                double altitudeAp = initialSemiMajorAxis * (1 + eccentricity) - body.Radius;
+                double altitudePe = initialSemiMajorAxis * (1 - eccentricity) - body.Radius;
+                equivalentAltitude = altitudePe + 900.0 * Math.Pow(eccentricity, 0.6);
+            }
 
-                    double InitialOrbitalVelocity = orbit.vel.magnitude;
-                    double InitialDensity = body.atmDensityASL;
-                    double BoltzmannConstant = Math.Pow(1.380 * 10, -23);
-                    double Altitude = vessel.altitude;
-                    double GravityASL = body.GeeASL;
-                    double AtmosphericMolarMass = body.atmosphereMolarMass;
+            double initialOrbitalVelocity = orbit.vel.magnitude;
+            double initialDensity = body.atmDensityASL;
+            double boltzmannConstant = Math.Pow(1.380 * 10, -23);
+            double altitude = vessel.altitude;
+            double gravityAsl = body.GeeASL;
+            double atmosphericMolarMass = body.atmosphereMolarMass;
 
-                    double VesselArea = VesselData.FetchArea(vessel);
-                    if (VesselArea == 0)
-                    {
-                        VesselArea = 1.0;
-                    }
+            double vesselArea = VesselData.FetchArea(vessel);
+            if (vesselArea == 0)
+            {
+                vesselArea = 1.0;
+            }
 
-                    double DistanceTravelled = InitialOrbitalVelocity; // Meters
-                    double VesselMass = VesselData.FetchMass(vessel);   // Kg
-                    if (VesselMass == 0)
-                    {
-                        VesselMass = 100.0; // Default is 100kg
-                    }
+            double distanceTravelled = initialOrbitalVelocity; // Meters
+            double vesselMass = VesselData.FetchMass(vessel);   // Kg
+            if (vesselMass == 0)
+            {
+                vesselMass = 100.0; // Default is 100kg
+            }
 
-                    EquivalentAltitude = (EquivalentAltitude / 1000.0);
+            equivalentAltitude = equivalentAltitude / 1000.0;
 
-                    double MolecularMass = 27.0 - (0.0012 * ((EquivalentAltitude) - 200.0));
-                    double F107Flux = SCSManager.FetchCurrentF107();
-                    double GeomagneticIndex = SCSManager.FetchCurrentAp();
+            double molecularMass = 27.0 - 0.0012 * (equivalentAltitude - 200.0);
+            double f107Flux = SCSManager.FetchCurrentF107();
+            double geomagneticIndex = SCSManager.FetchCurrentAp();
 
-                    double ExothericTemperature = 900.0 + (2.5 * (F107Flux - 70.0)) + (1.5 * GeomagneticIndex);
-                    double ScaleHeight = ExothericTemperature / MolecularMass;
-                    double AtmosphericDensity = (6.0 * (Math.Pow((10.0), -10.0)) * Math.Pow((double)Math.E, -(((double)(EquivalentAltitude) - 175.0f) / (double)ScaleHeight)));
+            double exothericTemperature = 900.0 + 2.5 * (f107Flux - 70.0) + 1.5 * geomagneticIndex;
+            double scaleHeight = exothericTemperature / molecularMass;
+            double atmosphericDensity = 6.0 * Math.Pow(10.0, -10.0) * Math.Pow(Math.E, -((equivalentAltitude - 175.0f) / scaleHeight));
 
-                    double DeltaPeriod = ((3 * Math.PI) * (InitialSemiMajorAxis * AtmosphericDensity) * ((VesselArea * 2.2) / VesselMass)); // Unitless
-                    double InitialPeriod = (2 * Math.PI * Math.Sqrt((Math.Pow(InitialSemiMajorAxis, (double)3.0)) / StandardGravitationalParameter));
-                    double FinalPeriod = InitialPeriod - DeltaPeriod;
-                    double FinalSemiMajorAxis = Math.Pow(((Math.Pow(((double)FinalPeriod / (double)(2 * Math.PI)), (double)2.0)) * (double)StandardGravitationalParameter), ((double)1.0 / (double)3.0));
-                    double DecayValue = InitialSemiMajorAxis - (double)FinalSemiMajorAxis;
+            double deltaPeriod = 3 * Math.PI * (initialSemiMajorAxis * atmosphericDensity) * (vesselArea * 2.2 / vesselMass); // Unitless
+            double initialPeriod = 2 * Math.PI * Math.Sqrt(Math.Pow(initialSemiMajorAxis, 3.0) / standardGravitationalParameter);
+            double finalPeriod = initialPeriod - deltaPeriod;
+            double finalSemiMajorAxis = Math.Pow(Math.Pow(finalPeriod / (2 * Math.PI), 2.0) * standardGravitationalParameter, 1.0 / 3.0);
+            double decayValue = initialSemiMajorAxis - finalSemiMajorAxis;
 
-                    double Multipliers = (double.Parse(TimeWarp.CurrentRate.ToString("F5")) * (double)Settings.ReadDecayDifficulty());
+            double multipliers = double.Parse(TimeWarp.CurrentRate.ToString("F5")) * Settings.ReadDecayDifficulty();
 
-                    VesselData.UpdateVesselSMA(vessel, (InitialSemiMajorAxis - (DecayValue * Multipliers)));
-                    VesselData.UpdateVesselLAN(vessel, VesselData.FetchLAN(vessel));
+            VesselData.UpdateVesselSMA(vessel, initialSemiMajorAxis - decayValue * multipliers);
+            VesselData.UpdateVesselLAN(vessel, VesselData.FetchLAN(vessel));
                      
-                    // Possibly update vessel LAN too? - 1.5.0
-                }
+            // Possibly update vessel LAN too? - 1.5.0
         } // Requires SCS
 
         public static void StockAtmosphericDragDecay(Vessel vessel)
@@ -743,63 +654,61 @@ namespace WhitecatIndustries
             Orbit orbit = vessel.orbitDriver.orbit;
             CelestialBody body = orbit.referenceBody;
 
-                double InitialSemiMajorAxis = VesselData.FetchSMA(vessel);
-                double MaxInfluence = body.Radius * 1.5;
+                double initialSemiMajorAxis = VesselData.FetchSMA(vessel);
+                double maxInfluence = body.Radius * 1.5;
 
-                if (InitialSemiMajorAxis < MaxInfluence)
-                {
-                    double StandardGravitationalParameter = body.gravParameter;
-                    double CartesianPositionVectorMagnitude = orbit.getRelativePositionAtT(HighLogic.CurrentGame.UniversalTime).magnitude; // Planetarium to HighLogic
-                    double EquivalentAltitude = (InitialSemiMajorAxis - body.Radius);
+            if (!(initialSemiMajorAxis < maxInfluence)) return;
+            double standardGravitationalParameter = body.gravParameter;
+            double cartesianPositionVectorMagnitude = orbit.getRelativePositionAtT(HighLogic.CurrentGame.UniversalTime).magnitude; // Planetarium to HighLogic
+            double equivalentAltitude = initialSemiMajorAxis - body.Radius;
 
-                    // Eccentricity updating
-                    double NewEccentricity = VesselData.FetchECC(vessel);
-                    // Still having problems here!
-                    // NewEccentricity = CalculateNewEccentricity(VesselData.FetchECC(vessel), InitialSemiMajorAxis, (InitialSemiMajorAxis - (DecayRateRealistic(vessel) / 10)));
-                    VesselData.UpdateVesselECC(vessel, NewEccentricity);
+            // Eccentricity updating
+            double newEccentricity = VesselData.FetchECC(vessel);
+            // Still having problems here!
+            // NewEccentricity = CalculateNewEccentricity(VesselData.FetchECC(vessel), InitialSemiMajorAxis, (InitialSemiMajorAxis - (DecayRateRealistic(vessel) / 10)));
+            VesselData.UpdateVesselECC(vessel, newEccentricity);
 
-                    double Eccentricity = NewEccentricity;
+            double eccentricity = newEccentricity;
 
-                    if (Eccentricity > 0.085)
-                    {
-                        double AltitudeAp = (InitialSemiMajorAxis * (1 + Eccentricity) - body.Radius);
-                        double AltitudePe = (InitialSemiMajorAxis * (1 - Eccentricity) - body.Radius);
-                        EquivalentAltitude = (AltitudePe) + 900.0 * Math.Pow(Eccentricity, (double)0.6);
-                    }
+            if (eccentricity > 0.085)
+            {
+                double altitudeAp = initialSemiMajorAxis * (1 + eccentricity) - body.Radius;
+                double altitudePe = initialSemiMajorAxis * (1 - eccentricity) - body.Radius;
+                equivalentAltitude = altitudePe + 900.0 * Math.Pow(eccentricity, 0.6);
+            }
 
-                    double InitialOrbitalVelocity = orbit.vel.magnitude;
-                    double InitialDensity = body.atmDensityASL;
-                    double BoltzmannConstant = Math.Pow(1.380 * 10, -23);
-                    double Altitude = vessel.altitude;
-                    double GravityASL = body.GeeASL;
-                    double AtmosphericMolarMass = body.atmosphereMolarMass;
+            double initialOrbitalVelocity = orbit.vel.magnitude;
+            double initialDensity = body.atmDensityASL;
+            double boltzmannConstant = Math.Pow(1.380 * 10, -23);
+            double altitude = vessel.altitude;
+            double gravityAsl = body.GeeASL;
+            double atmosphericMolarMass = body.atmosphereMolarMass;
 
-                    double VesselArea = VesselData.FetchArea(vessel);
-                    if (VesselArea == 0)
-                    {
-                        VesselArea = 5.0;
-                    }
+            double vesselArea = VesselData.FetchArea(vessel);
+            if (vesselArea == 0)
+            {
+                vesselArea = 5.0;
+            }
 
-                    double DistanceTravelled = InitialOrbitalVelocity; // Meters
-                    double VesselMass = VesselData.FetchMass(vessel);   // Kg
-                    if (VesselMass == 0)
-                    {
-                        VesselMass = 1000.0; // Default is 100kg
-                    }
+            double distanceTravelled = initialOrbitalVelocity; // Meters
+            double vesselMass = VesselData.FetchMass(vessel);   // Kg
+            if (vesselMass == 0)
+            {
+                vesselMass = 1000.0; // Default is 100kg
+            }
 
-                    EquivalentAltitude = (EquivalentAltitude / 1000.0);
+            equivalentAltitude = equivalentAltitude / 1000.0;
 
-                    double AtmosphericDensity = 1.020 * Math.Pow(10.0, 7.0) * Math.Pow(EquivalentAltitude + 70.0, -7.172);
-                    double DeltaPeriod = ((3 * Math.PI) * (InitialSemiMajorAxis * AtmosphericDensity) * ((VesselArea * 2.2) / VesselMass)); // Unitless
-                    double InitialPeriod = (2 * Math.PI * Math.Sqrt((Math.Pow(InitialSemiMajorAxis, (double)3.0)) / StandardGravitationalParameter));
-                    double FinalPeriod = InitialPeriod - DeltaPeriod;
-                    double FinalSemiMajorAxis = Math.Pow(((Math.Pow(((double)FinalPeriod / (double)(2 * Math.PI)), (double)2.0)) * (double)StandardGravitationalParameter), ((double)1.0 / (double)3.0));
-                    double DecayValue = InitialSemiMajorAxis - (double)FinalSemiMajorAxis;
-                    double Multipliers = (double.Parse(TimeWarp.CurrentRate.ToString("F5")) * (double)Settings.ReadDecayDifficulty());
+            double atmosphericDensity = 1.020 * Math.Pow(10.0, 7.0) * Math.Pow(equivalentAltitude + 70.0, -7.172);
+            double deltaPeriod = 3 * Math.PI * (initialSemiMajorAxis * atmosphericDensity) * (vesselArea * 2.2 / vesselMass); // Unitless
+            double initialPeriod = 2 * Math.PI * Math.Sqrt(Math.Pow(initialSemiMajorAxis, 3.0) / standardGravitationalParameter);
+            double finalPeriod = initialPeriod - deltaPeriod;
+            double finalSemiMajorAxis = Math.Pow(Math.Pow(finalPeriod / (2 * Math.PI), 2.0) * standardGravitationalParameter, 1.0 / 3.0);
+            double decayValue = initialSemiMajorAxis - finalSemiMajorAxis;
+            double multipliers = double.Parse(TimeWarp.CurrentRate.ToString("F5")) * Settings.ReadDecayDifficulty();
 
-                    VesselData.UpdateVesselSMA(vessel, (InitialSemiMajorAxis - (DecayValue * Multipliers)));
-                    VesselData.UpdateVesselLAN(vessel, VesselData.FetchLAN(vessel));
-                }
+            VesselData.UpdateVesselSMA(vessel, initialSemiMajorAxis - decayValue * multipliers);
+            VesselData.UpdateVesselLAN(vessel, VesselData.FetchLAN(vessel));
         } // 1.4.0
 
         public static void RealisticRadiationDragDecay(Vessel vessel)
@@ -807,41 +716,36 @@ namespace WhitecatIndustries
             Orbit orbit = vessel.orbitDriver.orbit;
             CelestialBody body = orbit.referenceBody;
 
-            double SolarEnergy = (double)Math.Pow(((double)3.86 * (double)10.0), (double)26); // W
-            double SolarDistance = 0.0;
-            if (vessel.orbitDriver.orbit.referenceBody == Sun.Instance.sun) // Checks for the sun
-            {
-                SolarDistance = vessel.orbitDriver.orbit.altitude;
-            }
-            else
-            {
-                SolarDistance = vessel.orbitDriver.orbit.referenceBody.orbit.altitude;
-            }
+            double solarEnergy = Math.Pow(3.86 * 10.0, 26); // W
+            double solarDistance = 0.0;
+            solarDistance = vessel.orbitDriver.orbit.referenceBody == Sun.Instance.sun ? 
+                vessel.orbitDriver.orbit.altitude : 
+                vessel.orbitDriver.orbit.referenceBody.orbit.altitude;
 
-            double SolarConstant = SolarEnergy / ((double)4.0 * (double)Math.PI * Math.Pow((double)SolarDistance, (double)2.0)); // W/m^2
-            double InitialSemiMajorAxis = VesselData.FetchSMA(vessel);
-            double StandardGravitationalParameter = body.gravParameter;
-            double MeanAngularVelocity = (double)Math.Sqrt((double)StandardGravitationalParameter / ((double)Math.Pow((double)InitialSemiMajorAxis, (double)3.0)));
-            double SpeedOfLight = Math.Pow((double)3.0 * (double)10.0, (double)8.0);
+            double solarConstant = solarEnergy / (4.0 * Math.PI * Math.Pow(solarDistance, 2.0)); // W/m^2
+            double initialSemiMajorAxis = VesselData.FetchSMA(vessel);
+            double standardGravitationalParameter = body.gravParameter;
+            double meanAngularVelocity = Math.Sqrt(standardGravitationalParameter / Math.Pow(initialSemiMajorAxis, 3.0));
+            double speedOfLight = Math.Pow(3.0 * 10.0, 8.0);
 
-            double VesselArea = VesselData.FetchArea(vessel);
-            if (VesselArea == 0)
+            double vesselArea = VesselData.FetchArea(vessel);
+            if (vesselArea == 0)
             {
-                VesselArea = 1.0;
+                vesselArea = 1.0;
             }
 
-            double VesselMass = VesselData.FetchMass(vessel);   // Kg
-            if (VesselMass == 0)
+            double vesselMass = VesselData.FetchMass(vessel);   // Kg
+            if (vesselMass == 0)
             {
-                VesselMass = 100.0;
+                vesselMass = 100.0;
             }
 
-            double VesselRadius = Math.Sqrt((double)VesselArea / (double)Math.PI);
-            double ImmobileAccelleration = (Math.PI * (VesselRadius * VesselRadius) * SolarConstant) / (VesselMass * SpeedOfLight * (SolarDistance * SolarDistance));
-            double ChangeInSemiMajorAxis = -(6.0 * Math.PI * ImmobileAccelleration * (InitialSemiMajorAxis)) / (MeanAngularVelocity * SpeedOfLight);
-            double FinalSemiMajorAxis = InitialSemiMajorAxis + ChangeInSemiMajorAxis;
+            double vesselRadius = Math.Sqrt(vesselArea / Math.PI);
+            double immobileAccelleration = Math.PI * (vesselRadius * vesselRadius) * solarConstant / (vesselMass * speedOfLight * (solarDistance * solarDistance));
+            double changeInSemiMajorAxis = -(6.0 * Math.PI * immobileAccelleration * initialSemiMajorAxis) / (meanAngularVelocity * speedOfLight);
+            double finalSemiMajorAxis = initialSemiMajorAxis + changeInSemiMajorAxis;
 
-            VesselData.UpdateVesselSMA(vessel, (InitialSemiMajorAxis + (ChangeInSemiMajorAxis * TimeWarp.CurrentRate * Settings.ReadDecayDifficulty())));
+            VesselData.UpdateVesselSMA(vessel, initialSemiMajorAxis + changeInSemiMajorAxis * TimeWarp.CurrentRate * Settings.ReadDecayDifficulty());
         }
 
         public static void RealisticGravitationalPertubationDecay(Vessel vessel) // 1.5.0 
@@ -849,39 +753,33 @@ namespace WhitecatIndustries
             Orbit orbit = vessel.orbitDriver.orbit;
             CelestialBody body = orbit.referenceBody;
 
-                double GravitationalConstant = 6.67408 * Math.Pow(10.0, -11.0); // G [Newton Meter Squared per Square Kilogram]
-                double ForceAtSurface = (GravitationalConstant * VesselData.FetchMass(vessel) * vessel.orbitDriver.orbit.referenceBody.Mass);
-                double ForceAtDistance = (GravitationalConstant * VesselData.FetchMass(vessel) * vessel.orbitDriver.orbit.referenceBody.Mass) / (Math.Pow(vessel.orbitDriver.orbit.altitude, 2.0));
-                if (ForceAtDistance > (0.0000000000001 * ForceAtSurface)) // Stops distant laggy pertubations
-                {
-                    if (TimeWarp.CurrentRate < 100)
-                    {
-                        if (MasConData.CheckMasConProximity(vessel))
-                        {
-                            VesselData.UpdateVesselSMA(vessel, VesselData.FetchSMA(vessel) + MasConManager.GetCalculatedSMAChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch) * TimeWarp.CurrentRate);
-                            VesselData.UpdateVesselINC(vessel, VesselData.FetchINC(vessel) + MasConManager.GetCalculatedINCChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
-                            VesselData.UpdateVesselECC(vessel, VesselData.FetchECC(vessel) + MasConManager.GetCalculatedINCChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
-                            VesselData.UpdateVesselLAN(vessel, VesselData.FetchLAN(vessel) + MasConManager.GetCalculatedLANChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
-                            //print("Change In MNA from Mascon: " + MasConManager.GetCalculatedMNAChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
-                        }
-                    }
+                double gravitationalConstant = 6.67408 * Math.Pow(10.0, -11.0); // G [Newton Meter Squared per Square Kilogram]
+                double forceAtSurface = gravitationalConstant * VesselData.FetchMass(vessel) * vessel.orbitDriver.orbit.referenceBody.Mass;
+                double forceAtDistance = gravitationalConstant * VesselData.FetchMass(vessel) * vessel.orbitDriver.orbit.referenceBody.Mass / Math.Pow(vessel.orbitDriver.orbit.altitude, 2.0);
+            if (!(forceAtDistance > 0.0000000000001 * forceAtSurface)) return;
+            if (TimeWarp.CurrentRate < 100)
+            {
+                if (!MasConData.CheckMasConProximity(vessel)) return;
+                VesselData.UpdateVesselSMA(vessel, VesselData.FetchSMA(vessel) + MasConManager.GetCalculatedSMAChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch) * TimeWarp.CurrentRate);
+                VesselData.UpdateVesselINC(vessel, VesselData.FetchINC(vessel) + MasConManager.GetCalculatedINCChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
+                VesselData.UpdateVesselECC(vessel, VesselData.FetchECC(vessel) + MasConManager.GetCalculatedINCChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
+                VesselData.UpdateVesselLAN(vessel, VesselData.FetchLAN(vessel) + MasConManager.GetCalculatedLANChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
+                //print("Change In MNA from Mascon: " + MasConManager.GetCalculatedMNAChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
+            }
 
-                    else
-                    {
-                        if (MasConData.CheckMasConProximity(vessel))
-                        {
-                            VesselData.UpdateVesselSMA(vessel, VesselData.FetchSMA(vessel) + MasConManager.GetSecularSMAChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
-                            VesselData.UpdateVesselINC(vessel, VesselData.FetchINC(vessel) + MasConManager.GetSecularIncChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
-                            VesselData.UpdateVesselECC(vessel, VesselData.FetchECC(vessel) + MasConManager.GetSecularECCChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
-                            VesselData.UpdateVesselLAN(vessel, MasConManager.GetSecularLANChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
-                        }
-                }
+            else
+            {
+                if (!MasConData.CheckMasConProximity(vessel)) return;
+                VesselData.UpdateVesselSMA(vessel, VesselData.FetchSMA(vessel) + MasConManager.GetSecularSMAChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
+                VesselData.UpdateVesselINC(vessel, VesselData.FetchINC(vessel) + MasConManager.GetSecularIncChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
+                VesselData.UpdateVesselECC(vessel, VesselData.FetchECC(vessel) + MasConManager.GetSecularECCChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
+                VesselData.UpdateVesselLAN(vessel, MasConManager.GetSecularLANChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch));
             }
         }
 
         public static void RealisticYarkovskyEffectDecay(Vessel vessel) // 1.5.0 
         {
-            VesselData.UpdateVesselSMA(vessel, VesselData.FetchSMA(vessel) - (-1.0 * YarkovskyEffect.FetchDeltaSMA(vessel)));
+            VesselData.UpdateVesselSMA(vessel, VesselData.FetchSMA(vessel) - -1.0 * YarkovskyEffect.FetchDeltaSMA(vessel));
         }
 
 
@@ -955,63 +853,58 @@ namespace WhitecatIndustries
         public static void CheckVesselSurvival(Vessel vessel)
         {
             VesselDied = false;
-            if (vessel.situation != Vessel.Situations.SUB_ORBITAL) // Prevents debris from dissapearing
+            if (vessel.situation == Vessel.Situations.SUB_ORBITAL) return;
+            if (vessel.orbitDriver.orbit.referenceBody.atmosphere) // Big problem ( Jool, Eve, Duna, Kerbin, Laythe)
             {
-
-                if (vessel.orbitDriver.orbit.referenceBody.atmosphere) // Big problem ( Jool, Eve, Duna, Kerbin, Laythe)
+                if (!MessageDisplayed.Keys.Contains(vessel))
                 {
-                    if (!MessageDisplayed.Keys.Contains(vessel))
+                    if (VesselData.FetchSMA(vessel) < vessel.orbitDriver.orbit.referenceBody.Radius + vessel.orbitDriver.referenceBody.atmosphereDepth)
                     {
-                        if (VesselData.FetchSMA(vessel) < vessel.orbitDriver.orbit.referenceBody.Radius + vessel.orbitDriver.referenceBody.atmosphereDepth)
-                        {
-                            TimeWarp.SetRate(0, false);
-                            print("Warning: " + vessel.vesselName + " is approaching " + vessel.orbitDriver.referenceBody.name + "'s hard atmosphere");
-                            ScreenMessages.PostScreenMessage("Warning: " + vessel.vesselName + " is approaching " + vessel.orbitDriver.referenceBody.name + "'s hard atmosphere");
-                            MessageDisplayed.Add(vessel, true);
-                        }
-                    }
-
-                    if (VesselData.FetchSMA(vessel) < vessel.orbitDriver.orbit.referenceBody.Radius + (vessel.orbitDriver.referenceBody.atmosphereDepth / (double)2.0)) // 1.5.0 Increased Tolerance
-                    {
-                        VesselDied = true;
-                    }
-                }
-                else // Moon Smaller Problem
-                {
-                    if (MessageDisplayed.Keys.Contains(vessel))
-                    {
-                        if (VesselData.FetchSMA(vessel) < vessel.orbitDriver.orbit.referenceBody.Radius + 5000)
-                        {
-                            TimeWarp.SetRate(0, false);
-                            print("Warning: " + vessel.vesselName + " is approaching " + vessel.orbitDriver.referenceBody.name + "'s surface");
-                            ScreenMessages.PostScreenMessage("Warning: " + vessel.vesselName + " is approaching " + vessel.orbitDriver.referenceBody.name + "'s surface");
-                            MessageDisplayed.Add(vessel, true);
-                        }
-                    }
-
-                    if (VesselData.FetchSMA(vessel) < vessel.orbitDriver.orbit.referenceBody.Radius + 100)
-                    {
-                        VesselDied = true;
+                        TimeWarp.SetRate(0, false);
+                        print("Warning: " + vessel.vesselName + " is approaching " + vessel.orbitDriver.referenceBody.name + "'s hard atmosphere");
+                        ScreenMessages.PostScreenMessage("Warning: " + vessel.vesselName + " is approaching " + vessel.orbitDriver.referenceBody.name + "'s hard atmosphere");
+                        MessageDisplayed.Add(vessel, true);
                     }
                 }
 
-                if (VesselDied == true)
+                if (VesselData.FetchSMA(vessel) < vessel.orbitDriver.orbit.referenceBody.Radius + vessel.orbitDriver.referenceBody.atmosphereDepth / 2.0) // 1.5.0 Increased Tolerance
                 {
-                    if (vessel != FlightGlobals.ActiveVessel)
-                    {
-                        print(vessel.vesselName + " entered " + vessel.orbitDriver.referenceBody.name + "'s atmosphere and was destroyed");
-                        ScreenMessages.PostScreenMessage(vessel.vesselName + " entered " + vessel.orbitDriver.referenceBody.name + "'s atmosphere and was destroyed");
-                        if (MessageDisplayed.ContainsKey(vessel))
-                        {
-                            MessageDisplayed.Remove(vessel);
-                        }
-                        VesselData.ClearVesselData(vessel);
-                        print("WhitecatIndustries - Orbital Decay - Vessel died");
-                        vessel.Die();
-                    }
-                    VesselDied = false;
+                    VesselDied = true;
                 }
             }
+            else // Moon Smaller Problem
+            {
+                if (MessageDisplayed.Keys.Contains(vessel))
+                {
+                    if (VesselData.FetchSMA(vessel) < vessel.orbitDriver.orbit.referenceBody.Radius + 5000)
+                    {
+                        TimeWarp.SetRate(0, false);
+                        print("Warning: " + vessel.vesselName + " is approaching " + vessel.orbitDriver.referenceBody.name + "'s surface");
+                        ScreenMessages.PostScreenMessage("Warning: " + vessel.vesselName + " is approaching " + vessel.orbitDriver.referenceBody.name + "'s surface");
+                        MessageDisplayed.Add(vessel, true);
+                    }
+                }
+
+                if (VesselData.FetchSMA(vessel) < vessel.orbitDriver.orbit.referenceBody.Radius + 100)
+                {
+                    VesselDied = true;
+                }
+            }
+
+            if (VesselDied != true) return;
+            if (vessel != FlightGlobals.ActiveVessel)
+            {
+                print(vessel.vesselName + " entered " + vessel.orbitDriver.referenceBody.name + "'s atmosphere and was destroyed");
+                ScreenMessages.PostScreenMessage(vessel.vesselName + " entered " + vessel.orbitDriver.referenceBody.name + "'s atmosphere and was destroyed");
+                if (MessageDisplayed.ContainsKey(vessel))
+                {
+                    MessageDisplayed.Remove(vessel);
+                }
+                VesselData.ClearVesselData(vessel);
+                print("WhitecatIndustries - Orbital Decay - Vessel died");
+                vessel.Die();
+            }
+            VesselDied = false;
         }
         #endregion
 
@@ -1019,107 +912,91 @@ namespace WhitecatIndustries
 
         public static void ActiveDecayRealistic(Vessel vessel)            // 1.4.0 Use Rigidbody.addForce
         {
-            if (CheckReferenceBody(vessel))
+            if (!CheckReferenceBody(vessel)) return;
+            double readTime = HighLogic.CurrentGame.UniversalTime;
+            double decayValue = DecayRateTotal(vessel);
+            double initialVelocity = vessel.orbitDriver.orbit.getOrbitalVelocityAtUT(readTime).magnitude;
+            double calculatedFinalVelocity = 0.0;
+            Orbit newOrbit = vessel.orbitDriver.orbit;
+            //newOrbit.semiMajorAxis = (VesselData.FetchSMA(vessel) - DecayValue);
+            double newSemiMajorAxis = VesselData.FetchSMA(vessel) - decayValue;
+            calculatedFinalVelocity = newOrbit.getOrbitalVelocityAtUT(readTime).magnitude;
+
+            double deltaVelocity = initialVelocity - calculatedFinalVelocity;
+            double decayForce = deltaVelocity * (VesselData.FetchMass(vessel) * 1000);
+            GameObject thisVessel = new GameObject();
+
+            if (TimeWarp.CurrentRate == 0 || TimeWarp.CurrentRate > 0 && TimeWarp.WarpMode == TimeWarp.Modes.LOW)
             {
-                double ReadTime = HighLogic.CurrentGame.UniversalTime;
-                double DecayValue = DecayRateTotal(vessel);
-                double InitialVelocity = vessel.orbitDriver.orbit.getOrbitalVelocityAtUT(ReadTime).magnitude;
-                double CalculatedFinalVelocity = 0.0;
-                Orbit newOrbit = vessel.orbitDriver.orbit;
-                //newOrbit.semiMajorAxis = (VesselData.FetchSMA(vessel) - DecayValue);
-                double NewSemiMajorAxis = (VesselData.FetchSMA(vessel) - DecayValue);
-                CalculatedFinalVelocity = newOrbit.getOrbitalVelocityAtUT(ReadTime).magnitude;
-
-                double DeltaVelocity = InitialVelocity - CalculatedFinalVelocity;
-                double decayForce = DeltaVelocity * (VesselData.FetchMass(vessel) * 1000);
-                GameObject thisVessel = new GameObject();
-
-                if (TimeWarp.CurrentRate == 0 || (TimeWarp.CurrentRate > 0 && TimeWarp.WarpMode == TimeWarp.Modes.LOW))
+                if (vessel.vesselType == VesselType.EVA) return;
+                foreach (Part p in vessel.parts)
                 {
-                    if (vessel.vesselType != VesselType.EVA)
+                    if (p.physicalSignificance == Part.PhysicalSignificance.FULL &&
+                        p.Rigidbody != null)
                     {
-                        foreach (Part p in vessel.parts)
-                        {
-                            if ((p.physicalSignificance == Part.PhysicalSignificance.FULL) &&
-                                (p.Rigidbody != null))
-                            {
-                                // NBody Active
-                                // p.Rigidbody.AddForce(Vector3d.back * (decayForce)); // 1.5.0
+                        // NBody Active
+                        // p.Rigidbody.AddForce(Vector3d.back * (decayForce)); // 1.5.0
                                 
-                            }
-                        }
-
-                        VesselData.UpdateVesselSMA(vessel, NewSemiMajorAxis);
                     }
                 }
 
-                else if (TimeWarp.CurrentRate > 0 && TimeWarp.WarpMode == TimeWarp.Modes.HIGH) // 1.3.0 Timewarp Fix
-                {
-                    bool MultipleLoadedSceneVessels = false; // 1.4.0 Debris warp fix
-                    MultipleLoadedSceneVessels = CheckVesselProximity(vessel);
+                VesselData.UpdateVesselSMA(vessel, newSemiMajorAxis);
+            }
 
-                    if (MultipleLoadedSceneVessels == false)
-                    {
-                        if (vessel.vesselType != VesselType.EVA)
-                        {
-                            //NBodyManager.ManageVessel(vessel); // 1.6.0 NBody
+            else if (TimeWarp.CurrentRate > 0 && TimeWarp.WarpMode == TimeWarp.Modes.HIGH) // 1.3.0 Timewarp Fix
+            {
+                bool multipleLoadedSceneVessels = false; // 1.4.0 Debris warp fix
+                multipleLoadedSceneVessels = CheckVesselProximity(vessel);
 
-                            VesselData.UpdateVesselSMA(vessel, (VesselData.FetchSMA(vessel) - DecayValue));
-                            CatchUpOrbit(vessel);
-                        }
-                    }
-                }
+                if (multipleLoadedSceneVessels) return;
+                if (vessel.vesselType == VesselType.EVA) return;
+                //NBodyManager.ManageVessel(vessel); // 1.6.0 NBody
+
+                VesselData.UpdateVesselSMA(vessel, VesselData.FetchSMA(vessel) - decayValue);
+                CatchUpOrbit(vessel);
             }
         }
 
         public static void ActiveDecayStock(Vessel vessel)
         {
-            if (CheckReferenceBody(vessel))
-            {
-            double ReadTime = HighLogic.CurrentGame.UniversalTime;
-            double DecayValue = DecayRateTotal(vessel);
-            double InitialVelocity = vessel.orbitDriver.orbit.getOrbitalVelocityAtUT(ReadTime).magnitude;
-            double CalculatedFinalVelocity = 0.0;
+            if (!CheckReferenceBody(vessel)) return;
+            double readTime = HighLogic.CurrentGame.UniversalTime;
+            double decayValue = DecayRateTotal(vessel);
+            double initialVelocity = vessel.orbitDriver.orbit.getOrbitalVelocityAtUT(readTime).magnitude;
+            double calculatedFinalVelocity = 0.0;
             Orbit newOrbit = vessel.orbitDriver.orbit;
             //newOrbit.semiMajorAxis = (VesselData.FetchSMA(vessel) - DecayValue);
-            double NewSemiMajorAxis = (VesselData.FetchSMA(vessel) - DecayValue);
-            CalculatedFinalVelocity = newOrbit.getOrbitalVelocityAtUT(ReadTime).magnitude;
-            double DeltaVelocity = InitialVelocity - CalculatedFinalVelocity;
-            double decayForce = DeltaVelocity * (VesselData.FetchMass(vessel) /1000.0);
+            double newSemiMajorAxis = VesselData.FetchSMA(vessel) - decayValue;
+            calculatedFinalVelocity = newOrbit.getOrbitalVelocityAtUT(readTime).magnitude;
+            double deltaVelocity = initialVelocity - calculatedFinalVelocity;
+            double decayForce = deltaVelocity * (VesselData.FetchMass(vessel) /1000.0);
             GameObject thisVessel = new GameObject();
 
-            if (TimeWarp.CurrentRate == 0 || (TimeWarp.CurrentRate > 0 && TimeWarp.WarpMode == TimeWarp.Modes.LOW))
+            if (TimeWarp.CurrentRate == 0 || TimeWarp.CurrentRate > 0 && TimeWarp.WarpMode == TimeWarp.Modes.LOW)
             {
-                if (vessel.vesselType != VesselType.EVA)
+                if (vessel.vesselType == VesselType.EVA) return;
+                foreach (Part p in vessel.parts)
                 {
-                    foreach (Part p in vessel.parts)
+                    if (p.physicalSignificance == Part.PhysicalSignificance.FULL &&
+                        p.Rigidbody != null)
                     {
-                        if ((p.physicalSignificance == Part.PhysicalSignificance.FULL) &&
-                            (p.Rigidbody != null))
-                        {
-                           // p.Rigidbody.AddForce((Vector3d.back * (decayForce))); // 1.5.0 Too Fast Still
-                        }
+                        // p.Rigidbody.AddForce((Vector3d.back * (decayForce))); // 1.5.0 Too Fast Still
                     }
-                    VesselData.UpdateVesselSMA(vessel, NewSemiMajorAxis);
                 }
+                VesselData.UpdateVesselSMA(vessel, newSemiMajorAxis);
 
             }
 
             else if (TimeWarp.CurrentRate > 0 && TimeWarp.WarpMode == TimeWarp.Modes.HIGH) // 1.3.0 Timewarp Fix
             {
-                bool MultipleLoadedSceneVessels = false; // 1.4.0 Debris warp fix
-                MultipleLoadedSceneVessels = CheckVesselProximity(vessel);
+                bool multipleLoadedSceneVessels = false; // 1.4.0 Debris warp fix
+                multipleLoadedSceneVessels = CheckVesselProximity(vessel);
 
-                if (MultipleLoadedSceneVessels == false)
-                {
-                    if (vessel.vesselType != VesselType.EVA)
-                    {
-                        VesselData.UpdateVesselSMA(vessel, (VesselData.FetchSMA(vessel) - DecayValue));
-                        CatchUpOrbit(vessel);
-                    }
-                }
+                if (multipleLoadedSceneVessels) return;
+                if (vessel.vesselType == VesselType.EVA) return;
+                VesselData.UpdateVesselSMA(vessel, VesselData.FetchSMA(vessel) - decayValue);
+                CatchUpOrbit(vessel);
             }
-                }
         }
 
         #endregion
@@ -1128,209 +1005,193 @@ namespace WhitecatIndustries
 
         public static double DecayRateRadiationPressure(Vessel vessel)
         {
-            double DecayRate = 0.0;
+            double decayRate = 0.0;
             CelestialBody body = vessel.orbitDriver.orbit.referenceBody;
-            double SolarEnergy = (double)Math.Pow(((double)3.86 * (double)10.0), (double)26.0); // W
-            double SolarDistance = 0.0;
-            if (vessel.orbitDriver.orbit.referenceBody == Sun.Instance.sun) // Checks for the sun
-            {
-                SolarDistance = vessel.orbitDriver.orbit.altitude;
-            }
-            else
-            {
-                SolarDistance = vessel.orbitDriver.orbit.referenceBody.orbit.altitude;
-            }
+            double solarEnergy = Math.Pow(3.86 * 10.0, 26.0); // W
+            double solarDistance = 0.0;
+            solarDistance = vessel.orbitDriver.orbit.referenceBody == Sun.Instance.sun ? 
+                vessel.orbitDriver.orbit.altitude : 
+                vessel.orbitDriver.orbit.referenceBody.orbit.altitude;
 
-            double SolarConstant = 0.0;
-            SolarConstant = SolarEnergy / ((double)4.0 * (double)Math.PI * (double)Math.Pow((double)SolarDistance, (double)2.0)); // W/m^2
-            double InitialSemiMajorAxis = VesselData.FetchSMA(vessel);
-            double StandardGravitationalParameter = body.gravParameter;
-            double MeanAngularVelocity = (double)Math.Sqrt((double)StandardGravitationalParameter / ((double)Math.Pow((double)InitialSemiMajorAxis, (double)3.0)));
-            double SpeedOfLight = Math.Pow((double)3.0 * (double)10.0, (double)8.0);
+            double solarConstant = 0.0;
+            solarConstant = solarEnergy / (4.0 * Math.PI * Math.Pow(solarDistance, 2.0)); // W/m^2
+            double initialSemiMajorAxis = VesselData.FetchSMA(vessel);
+            double standardGravitationalParameter = body.gravParameter;
+            double meanAngularVelocity = Math.Sqrt(standardGravitationalParameter / Math.Pow(initialSemiMajorAxis, 3.0));
+            double speedOfLight = Math.Pow(3.0 * 10.0, 8.0);
 
-            double VesselArea = VesselData.FetchArea(vessel);
-            if (VesselArea == 0)
+            double vesselArea = VesselData.FetchArea(vessel);
+            if (vesselArea == 0)
             {
-                VesselArea = 1.0;
+                vesselArea = 1.0;
             }
 
-            double VesselMass = VesselData.FetchMass(vessel);   // Kg
-            if (VesselMass == 0)
+            double vesselMass = VesselData.FetchMass(vessel);   // Kg
+            if (vesselMass == 0)
             {
-                VesselMass = 100.0;
+                vesselMass = 100.0;
             }
 
-            double VesselRadius = (double)Math.Sqrt((double)VesselArea / (double)Math.PI);
-            double ImmobileAccelleration = (Math.PI * (VesselRadius * VesselRadius) * SolarConstant) / (VesselMass * SpeedOfLight * (SolarDistance * SolarDistance));
-            double ChangeInSemiMajorAxis = -(6.0 * Math.PI * ImmobileAccelleration * (InitialSemiMajorAxis)) / (MeanAngularVelocity * SpeedOfLight);
+            double vesselRadius = Math.Sqrt(vesselArea / Math.PI);
+            double immobileAccelleration = Math.PI * (vesselRadius * vesselRadius) * solarConstant / (vesselMass * speedOfLight * (solarDistance * solarDistance));
+            double changeInSemiMajorAxis = -(6.0 * Math.PI * immobileAccelleration * initialSemiMajorAxis) / (meanAngularVelocity * speedOfLight);
 
-            double DecayRateModifier = 0.0;
-            DecayRateModifier = Settings.ReadDecayDifficulty();
-            DecayRate = ((ChangeInSemiMajorAxis) * TimeWarp.CurrentRate * DecayRateModifier);
+            double decayRateModifier = 0.0;
+            decayRateModifier = Settings.ReadDecayDifficulty();
+            decayRate = changeInSemiMajorAxis * TimeWarp.CurrentRate * decayRateModifier;
 
-            return DecayRate;
+            return decayRate;
         }
 
         public static double DecayRateAtmosphericDrag(Vessel vessel) // Removed floats 
         {
-            double DecayRate = 0.0;
+            double decayRate = 0.0;
             Orbit orbit = vessel.orbitDriver.orbit;
             CelestialBody body = orbit.referenceBody;
 
-            if (Settings.ReadRD() == true)
+            if (Settings.ReadRD())
             {
-                if (body.atmosphere == true)  // Atmospheric Drag // Disused for 1.1.0
+                if (body.atmosphere != true) return decayRate;
+                double initialSemiMajorAxis = VesselData.FetchSMA(vessel);
+                double maxInfluence = body.Radius * 1.5;
+
+                if (!(initialSemiMajorAxis < maxInfluence)) return decayRate;
+                double standardGravitationalParameter = body.gravParameter;
+                double cartesianPositionVectorMagnitude = orbit.getRelativePositionAtT(HighLogic.CurrentGame.UniversalTime).magnitude; // Planetarium
+                double equivalentAltitude = initialSemiMajorAxis - body.Radius;
+                double eccentricity = VesselData.FetchECC(vessel);
+
+                if (eccentricity > 0.085)
                 {
-                    double InitialSemiMajorAxis = VesselData.FetchSMA(vessel);
-                    double MaxInfluence = body.Radius * 1.5;
-
-                    if (InitialSemiMajorAxis < MaxInfluence)
-                    {
-                        double StandardGravitationalParameter = body.gravParameter;
-                        double CartesianPositionVectorMagnitude = orbit.getRelativePositionAtT(HighLogic.CurrentGame.UniversalTime).magnitude; // Planetarium
-                        double EquivalentAltitude = (InitialSemiMajorAxis - body.Radius);
-                        double Eccentricity = VesselData.FetchECC(vessel);
-
-                        if (Eccentricity > 0.085)
-                        {
-                            double AltitudeAp = (InitialSemiMajorAxis * (1 + Eccentricity) - body.Radius);
-                            double AltitudePe = (InitialSemiMajorAxis * (1 - Eccentricity) - body.Radius);
-                            EquivalentAltitude = (AltitudePe) + 900 * Math.Pow(Eccentricity, (double)0.6);
-                        }
-                        double InitialOrbitalVelocity = orbit.vel.magnitude;
-                        double InitialDensity = body.atmDensityASL;
-                        double BoltzmannConstant = Math.Pow(1.380 * 10, -23);
-                        double Altitude = vessel.altitude;
-                        double GravityASL = body.GeeASL;
-                        double AtmosphericMolarMass = body.atmosphereMolarMass;
-                        double VesselArea = VesselData.FetchArea(vessel);
-                        if (VesselArea == 0)
-                        {
-                            VesselArea = 1.0;
-                        }
-
-                        double DistanceTravelled = InitialOrbitalVelocity; // Meters
-                        double VesselMass = VesselData.FetchMass(vessel);   // Kg
-                        if (VesselMass == 0)
-                        {
-                            VesselMass = 100.0; // Default is 100kg
-                        }
-
-                        EquivalentAltitude = EquivalentAltitude / 1000.0;
-
-                        double MolecularMass = 27 - 0.0012 * ((EquivalentAltitude) - 200);
-                        double F107Flux = SCSManager.FetchCurrentF107();
-                        double GeomagneticIndex = SCSManager.FetchCurrentAp();
-
-                        double ExothericTemperature = 900.0 + (2.5 * (F107Flux - 70.0)) + (1.5 * GeomagneticIndex);
-                        double ScaleHeight = ExothericTemperature / MolecularMass;
-                        double AtmosphericDensity = (6.0 * (Math.Pow((10.0), -10.0)) * Math.Pow(Math.E, -(((EquivalentAltitude) - 175.0f) / ScaleHeight)));
-
-                        double DeltaPeriod = ((3 * Math.PI) * (InitialSemiMajorAxis * AtmosphericDensity) * ((VesselArea * 2.2) / VesselMass)); // Unitless
-                        double InitialPeriod = (2 * Math.PI * Math.Sqrt((Math.Pow(InitialSemiMajorAxis, (double)3)) / StandardGravitationalParameter));
-                        double FinalPeriod = InitialPeriod - DeltaPeriod;
-                        double FinalSemiMajorAxis = Math.Pow(((Math.Pow(((double)FinalPeriod / (double)(2.0 * Math.PI)), (double)2.0)) * (double)StandardGravitationalParameter), ((double)1.0 / (double)3.0));
-
-                        double DecayRateModifier = 0.0;
-                        DecayRateModifier = Settings.ReadDecayDifficulty();
-
-                        DecayRate = (InitialSemiMajorAxis - FinalSemiMajorAxis) * TimeWarp.CurrentRate * DecayRateModifier;
-                    }
+                    double altitudeAp = initialSemiMajorAxis * (1 + eccentricity) - body.Radius;
+                    double altitudePe = initialSemiMajorAxis * (1 - eccentricity) - body.Radius;
+                    equivalentAltitude = altitudePe + 900 * Math.Pow(eccentricity, 0.6);
                 }
+                double initialOrbitalVelocity = orbit.vel.magnitude;
+                double initialDensity = body.atmDensityASL;
+                double boltzmannConstant = Math.Pow(1.380 * 10, -23);
+                double altitude = vessel.altitude;
+                double gravityAsl = body.GeeASL;
+                double atmosphericMolarMass = body.atmosphereMolarMass;
+                double vesselArea = VesselData.FetchArea(vessel);
+                if (vesselArea == 0)
+                {
+                    vesselArea = 1.0;
+                }
+
+                double distanceTravelled = initialOrbitalVelocity; // Meters
+                double vesselMass = VesselData.FetchMass(vessel);   // Kg
+                if (vesselMass == 0)
+                {
+                    vesselMass = 100.0; // Default is 100kg
+                }
+
+                equivalentAltitude = equivalentAltitude / 1000.0;
+
+                double molecularMass = 27 - 0.0012 * (equivalentAltitude - 200);
+                double f107Flux = SCSManager.FetchCurrentF107();
+                double geomagneticIndex = SCSManager.FetchCurrentAp();
+
+                double exothericTemperature = 900.0 + 2.5 * (f107Flux - 70.0) + 1.5 * geomagneticIndex;
+                double scaleHeight = exothericTemperature / molecularMass;
+                double atmosphericDensity = 6.0 * Math.Pow(10.0, -10.0) * Math.Pow(Math.E, -((equivalentAltitude - 175.0f) / scaleHeight));
+
+                double deltaPeriod = 3 * Math.PI * (initialSemiMajorAxis * atmosphericDensity) * (vesselArea * 2.2 / vesselMass); // Unitless
+                double initialPeriod = 2 * Math.PI * Math.Sqrt(Math.Pow(initialSemiMajorAxis, 3) / standardGravitationalParameter);
+                double finalPeriod = initialPeriod - deltaPeriod;
+                double finalSemiMajorAxis = Math.Pow(Math.Pow(finalPeriod / (2.0 * Math.PI), 2.0) * standardGravitationalParameter, 1.0 / 3.0);
+
+                double decayRateModifier = 0.0;
+                decayRateModifier = Settings.ReadDecayDifficulty();
+
+                decayRate = (initialSemiMajorAxis - finalSemiMajorAxis) * TimeWarp.CurrentRate * decayRateModifier;
             }
             else
             {
-                if (body.atmosphere == true)  // Atmospheric Drag // Disused for 1.1.0
+                if (body.atmosphere != true) return decayRate;
+                double initialSemiMajorAxis = VesselData.FetchSMA(vessel);
+                double maxInfluence = body.Radius * 1.5;
+
+                if (!(initialSemiMajorAxis < maxInfluence)) return decayRate;
+                double standardGravitationalParameter = body.gravParameter;
+                double cartesianPositionVectorMagnitude = orbit.getRelativePositionAtT(HighLogic.CurrentGame.UniversalTime).magnitude; // Planetarium
+                double equivalentAltitude = initialSemiMajorAxis - body.Radius;
+                double eccentricity = VesselData.FetchECC(vessel);
+
+                if (eccentricity > 0.085)
                 {
-                    double InitialSemiMajorAxis = VesselData.FetchSMA(vessel);
-                    double MaxInfluence = body.Radius * 1.5;
-
-                    if (InitialSemiMajorAxis < MaxInfluence)
-                    {
-                        double StandardGravitationalParameter = body.gravParameter;
-                        double CartesianPositionVectorMagnitude = orbit.getRelativePositionAtT(HighLogic.CurrentGame.UniversalTime).magnitude; // Planetarium
-                        double EquivalentAltitude = (InitialSemiMajorAxis - body.Radius);
-                        double Eccentricity = VesselData.FetchECC(vessel);
-
-                        if (Eccentricity > 0.085)
-                        {
-                            double AltitudeAp = (InitialSemiMajorAxis * (1 + Eccentricity) - body.Radius);
-                            double AltitudePe = (InitialSemiMajorAxis * (1 - Eccentricity) - body.Radius);
-                            EquivalentAltitude = (AltitudePe) + 900 * Math.Pow(Eccentricity, (double)0.6);
-                        }
-                        double InitialOrbitalVelocity = orbit.vel.magnitude;
-                        double InitialDensity = body.atmDensityASL;
-                        double BoltzmannConstant = Math.Pow(1.380 * 10, -23);
-                        double Altitude = vessel.altitude;
-                        double GravityASL = body.GeeASL;
-                        double AtmosphericMolarMass = body.atmosphereMolarMass;
-                        double VesselArea = VesselData.FetchArea(vessel);
-                        if (VesselArea == 0)
-                        {
-                            VesselArea = 5.0;
-                        }
-
-                        double DistanceTravelled = InitialOrbitalVelocity; // Meters
-                        double VesselMass = VesselData.FetchMass(vessel);   // Kg
-                        if (VesselMass == 0)
-                        {
-                            VesselMass = 1000.0; // Default is 100kg
-                        }
-
-                        EquivalentAltitude = EquivalentAltitude / 1000.0;
-
-                        double AtmosphericDensity = 1.020 * (Math.Pow(10, 7.0) * Math.Pow(((EquivalentAltitude + 70.0)), -7.172)); // Kg/m^3 // *1
-                        double DeltaPeriod = ((3 * Math.PI) * (InitialSemiMajorAxis * AtmosphericDensity) * ((VesselArea * 2.2) / VesselMass)); // Unitless
-                        double InitialPeriod = (2 * Math.PI * Math.Sqrt((Math.Pow(InitialSemiMajorAxis, (double)3)) / StandardGravitationalParameter));
-                        double FinalPeriod = InitialPeriod - DeltaPeriod;
-                        double FinalSemiMajorAxis = Math.Pow(((Math.Pow(((double)FinalPeriod / (double)(2.0 * Math.PI)), (double)2.0)) * (double)StandardGravitationalParameter), ((double)1.0 / (double)3.0));
-
-                        double DecayRateModifier = 0.0;
-                        DecayRateModifier = Settings.ReadDecayDifficulty();
-
-                        DecayRate = (InitialSemiMajorAxis - FinalSemiMajorAxis) * TimeWarp.CurrentRate * DecayRateModifier;
-                    }
+                    double altitudeAp = initialSemiMajorAxis * (1 + eccentricity) - body.Radius;
+                    double altitudePe = initialSemiMajorAxis * (1 - eccentricity) - body.Radius;
+                    equivalentAltitude = altitudePe + 900 * Math.Pow(eccentricity, 0.6);
                 }
+                double initialOrbitalVelocity = orbit.vel.magnitude;
+                double initialDensity = body.atmDensityASL;
+                double boltzmannConstant = Math.Pow(1.380 * 10, -23);
+                double altitude = vessel.altitude;
+                double gravityAsl = body.GeeASL;
+                double atmosphericMolarMass = body.atmosphereMolarMass;
+                double vesselArea = VesselData.FetchArea(vessel);
+                if (vesselArea == 0)
+                {
+                    vesselArea = 5.0;
+                }
+
+                double distanceTravelled = initialOrbitalVelocity; // Meters
+                double vesselMass = VesselData.FetchMass(vessel);   // Kg
+                if (vesselMass == 0)
+                {
+                    vesselMass = 1000.0; // Default is 100kg
+                }
+
+                equivalentAltitude = equivalentAltitude / 1000.0;
+
+                double atmosphericDensity = 1.020 * (Math.Pow(10, 7.0) * Math.Pow(equivalentAltitude + 70.0, -7.172)); // Kg/m^3 // *1
+                double deltaPeriod = 3 * Math.PI * (initialSemiMajorAxis * atmosphericDensity) * (vesselArea * 2.2 / vesselMass); // Unitless
+                double initialPeriod = 2 * Math.PI * Math.Sqrt(Math.Pow(initialSemiMajorAxis, 3) / standardGravitationalParameter);
+                double finalPeriod = initialPeriod - deltaPeriod;
+                double finalSemiMajorAxis = Math.Pow(Math.Pow(finalPeriod / (2.0 * Math.PI), 2.0) * standardGravitationalParameter, 1.0 / 3.0);
+
+                double decayRateModifier = 0.0;
+                decayRateModifier = Settings.ReadDecayDifficulty();
+
+                decayRate = (initialSemiMajorAxis - finalSemiMajorAxis) * TimeWarp.CurrentRate * decayRateModifier;
             }
 
-            return DecayRate;
+            return decayRate;
         }
 
         public static double DecayRateGravitationalPertubation(Vessel vessel)
         {
             Orbit orbit = vessel.orbitDriver.orbit;
             CelestialBody body = orbit.referenceBody;
-            double DecayRate = 0.0;
+            double decayRate = 0.0;
 
-            double GravitationalConstant = 6.67408 * Math.Pow(10.0, -11.0); // G [Newton Meter Squared per Square Kilogram]
-            double ForceAtSurface = (GravitationalConstant * VesselData.FetchMass(vessel) * vessel.orbitDriver.orbit.referenceBody.Mass);
-            double ForceAtDistance = (GravitationalConstant * VesselData.FetchMass(vessel) * vessel.orbitDriver.orbit.referenceBody.Mass) / (Math.Pow(vessel.orbitDriver.orbit.altitude, 2.0));
-            if (ForceAtDistance > (0.0000000000001 * ForceAtSurface)) // Stops distant laggy pertubations
+            double gravitationalConstant = 6.67408 * Math.Pow(10.0, -11.0); // G [Newton Meter Squared per Square Kilogram]
+            double forceAtSurface = gravitationalConstant * VesselData.FetchMass(vessel) * vessel.orbitDriver.orbit.referenceBody.Mass;
+            double forceAtDistance = gravitationalConstant * VesselData.FetchMass(vessel) * vessel.orbitDriver.orbit.referenceBody.Mass / Math.Pow(vessel.orbitDriver.orbit.altitude, 2.0);
+            if (!(forceAtDistance > 0.0000000000001 * forceAtSurface)) return decayRate;
+            if (vessel.isActiveVessel)
             {
-                if (vessel.isActiveVessel)
+                if (MasConData.CheckMasConProximity(vessel))
                 {
-                    if (MasConData.CheckMasConProximity(vessel))
-                    {
-                        DecayRate = MasConManager.GetCalculatedSMAChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch) * TimeWarp.CurrentRate;
-                    }
+                    decayRate = MasConManager.GetCalculatedSMAChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch) * TimeWarp.CurrentRate;
                 }
-
-                else
+            }
+            else
+            {
+                if (MasConData.CheckMasConProximity(vessel))
                 {
-                    if (MasConData.CheckMasConProximity(vessel))
-                    {
-                        DecayRate = MasConManager.GetSecularSMAChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch);
-                    }
+                    decayRate = MasConManager.GetSecularSMAChange(vessel, orbit.LAN, orbit.meanAnomalyAtEpoch, orbit.argumentOfPeriapsis, orbit.eccentricity, orbit.inclination, orbit.semiMajorAxis, orbit.epoch);
                 }
             }
 
-            return DecayRate;
+            return decayRate;
         }
 
         public static double DecayRateYarkovskyEffect(Vessel vessel)
         {
-            double DecayRate = YarkovskyEffect.FetchDeltaSMA(vessel);
-            return DecayRate;
+            double decayRate = YarkovskyEffect.FetchDeltaSMA(vessel);
+            return decayRate;
         }
 
         public static double DecayRateNBodyPerturbation(Vessel vessel)
@@ -1345,174 +1206,163 @@ namespace WhitecatIndustries
 
         public static double DecayRateTotal(Vessel vessel)
         {
-            double Total = DecayRateAtmosphericDrag(vessel) + DecayRateGravitationalPertubation(vessel) + DecayRateRadiationPressure(vessel) + DecayRateYarkovskyEffect(vessel);
-            return Total;
+            double total = DecayRateAtmosphericDrag(vessel) + DecayRateGravitationalPertubation(vessel) + DecayRateRadiationPressure(vessel) + DecayRateYarkovskyEffect(vessel);
+            return total;
         } // Total for 1.5.0
 
 #endregion 
 
         #region Editor Decay Rate Subroutines
 
-        public static double EditorDecayRateRadiationPressure(double mass, double area, double SMA, double eccentricity, CelestialBody body)
+        public static double EditorDecayRateRadiationPressure(double mass, double area, double sma, double eccentricity, CelestialBody body)
         {
-            double DecayRate = 0.0;
-
-            double SolarEnergy = (double)Math.Pow(((double)3.86 * (double)10.0), (double)26.0); // W
-            double SolarDistance = 0.0;
+            double solarEnergy = Math.Pow(3.86 * 10.0, 26.0); // W
+            double solarDistance;
             if (body == Sun.Instance.sun) // Checks for the sun
             {
-                SolarDistance = SMA- body.Radius;
+                solarDistance = sma- body.Radius;
             }
             else
             {
-                SolarDistance = body.orbitDriver.orbit.altitude;
+                solarDistance = body.orbitDriver.orbit.altitude;
             }
 
-            double SolarConstant = 0.0;
-            SolarConstant = SolarEnergy / ((double)4.0 * (double)Math.PI * (double)Math.Pow((double)SolarDistance, (double)2.0)); // W/m^2
-            double InitialSemiMajorAxis = SMA;
-            double StandardGravitationalParameter = body.gravParameter;
-            double MeanAngularVelocity = (double)Math.Sqrt((double)StandardGravitationalParameter / ((double)Math.Pow((double)InitialSemiMajorAxis, (double)3.0)));
-            double SpeedOfLight = Math.Pow((double)3.0 * (double)10.0, (double)8.0);
+            double solarConstant = solarEnergy / (4.0 * Math.PI * Math.Pow(solarDistance, 2.0));
+            double initialSemiMajorAxis = sma;
+            double standardGravitationalParameter = body.gravParameter;
+            double meanAngularVelocity = Math.Sqrt(standardGravitationalParameter / Math.Pow(initialSemiMajorAxis, 3.0));
+            double speedOfLight = Math.Pow(3.0 * 10.0, 8.0);
 
-            double VesselArea = area;
-            if (VesselArea == 0)
+            double vesselArea = area;
+            if (vesselArea == 0)
             {
-                VesselArea = 1.0;
+                vesselArea = 1.0;
             }
 
-            double VesselMass = mass;   // Kg
-            if (VesselMass == 0)
+            double vesselMass = mass;   // Kg
+            if (vesselMass == 0)
             {
-                VesselMass = 100.0;
+                vesselMass = 100.0;
             }
 
-            double VesselRadius = (double)Math.Sqrt((double)VesselArea / (double)Math.PI);
-            double ImmobileAccelleration = (Math.PI * (VesselRadius * VesselRadius) * SolarConstant) / (VesselMass * SpeedOfLight * (SolarDistance * SolarDistance));
-            double ChangeInSemiMajorAxis = -(6.0 * Math.PI * ImmobileAccelleration * (InitialSemiMajorAxis)) / (MeanAngularVelocity * SpeedOfLight);
+            double vesselRadius = Math.Sqrt(vesselArea / Math.PI);
+            double immobileAccelleration = Math.PI * (vesselRadius * vesselRadius) * solarConstant / (vesselMass * speedOfLight * (solarDistance * solarDistance));
+            double changeInSemiMajorAxis = -(6.0 * Math.PI * immobileAccelleration * initialSemiMajorAxis) / (meanAngularVelocity * speedOfLight);
 
-            double DecayRateModifier = 0.0;
-            DecayRateModifier = Settings.ReadDecayDifficulty();
-            DecayRate = ((ChangeInSemiMajorAxis) * DecayRateModifier);
+            double decayRateModifier = 0.0;
+            decayRateModifier = Settings.ReadDecayDifficulty();
+            double decayRate = changeInSemiMajorAxis * decayRateModifier;
 
-            return DecayRate;
+            return decayRate;
         } // 1.6.0
 
-        public static double EditorDecayRateAtmosphericDrag(double mass, double area, double SMA, double eccentricity, CelestialBody body) 
+        public static double EditorDecayRateAtmosphericDrag(double mass, double area, double sma, double eccentricity, CelestialBody body) 
         {
-            double DecayRate = 0.0;
+            double decayRate = 0.0;
 
-            if (Settings.ReadRD() == true)
+            if (Settings.ReadRD())
             {
-                if (body.atmosphere == true)  // Atmospheric Drag // Disused for 1.1.0
+                if (body.atmosphere != true) return decayRate;
+                double initialSemiMajorAxis = sma;
+                double maxInfluence = body.Radius * 1.5;
+
+                if (!(initialSemiMajorAxis < maxInfluence)) return decayRate;
+                double standardGravitationalParameter = body.gravParameter;
+                double equivalentAltitude = initialSemiMajorAxis - body.Radius;
+                //double eccentricity = eccentricity;
+
+                if (eccentricity > 0.085)
                 {
-                    double InitialSemiMajorAxis = SMA;
-                    double MaxInfluence = body.Radius * 1.5;
-
-                    if (InitialSemiMajorAxis < MaxInfluence)
-                    {
-                        double StandardGravitationalParameter = body.gravParameter;
-                        double EquivalentAltitude = (InitialSemiMajorAxis - body.Radius);
-                        double Eccentricity = eccentricity;
-
-                        if (Eccentricity > 0.085)
-                        {
-                            double AltitudeAp = (InitialSemiMajorAxis * (1 + Eccentricity) - body.Radius);
-                            double AltitudePe = (InitialSemiMajorAxis * (1 - Eccentricity) - body.Radius);
-                            EquivalentAltitude = (AltitudePe) + 900 * Math.Pow(Eccentricity, (double)0.6);
-                        }
-                        double InitialDensity = body.atmDensityASL;
-                        double BoltzmannConstant = Math.Pow(1.380 * 10, -23);
-                        double Altitude = SMA - body.Radius;
-                        double GravityASL = body.GeeASL;
-                        double AtmosphericMolarMass = body.atmosphereMolarMass;
-                        double VesselArea = area;
-                        if (VesselArea == 0)
-                        {
-                            VesselArea = 1.0;
-                        }
-
-                        double VesselMass = mass;   // Kg
-                        if (VesselMass == 0)
-                        {
-                            VesselMass = 100.0; // Default is 100kg
-                        }
-
-                        EquivalentAltitude = EquivalentAltitude / 1000.0;
-
-                        double MolecularMass = 27 - 0.0012 * ((EquivalentAltitude) - 200);
-                        double F107Flux = SCSManager.FetchCurrentF107();
-                        double GeomagneticIndex = SCSManager.FetchCurrentAp();
-
-                        double ExothericTemperature = 900.0 + (2.5 * (F107Flux - 70.0)) + (1.5 * GeomagneticIndex);
-                        double ScaleHeight = ExothericTemperature / MolecularMass;
-                        double AtmosphericDensity = (6.0 * (Math.Pow((10.0), -10.0)) * Math.Pow(Math.E, -(((EquivalentAltitude) - 175.0f) / ScaleHeight)));
-
-                        double DeltaPeriod = ((3 * Math.PI) * (InitialSemiMajorAxis * AtmosphericDensity) * ((VesselArea * 2.2) / VesselMass)); // Unitless
-                        double InitialPeriod = (2 * Math.PI * Math.Sqrt((Math.Pow(InitialSemiMajorAxis, (double)3)) / StandardGravitationalParameter));
-                        double FinalPeriod = InitialPeriod - DeltaPeriod;
-                        double FinalSemiMajorAxis = Math.Pow(((Math.Pow(((double)FinalPeriod / (double)(2.0 * Math.PI)), (double)2.0)) * (double)StandardGravitationalParameter), ((double)1.0 / (double)3.0));
-
-                        double DecayRateModifier = 0.0;
-                        DecayRateModifier = Settings.ReadDecayDifficulty();
-
-                        DecayRate = (InitialSemiMajorAxis - FinalSemiMajorAxis) * TimeWarp.CurrentRate * DecayRateModifier;
-                    }
+                    double altitudeAp = initialSemiMajorAxis * (1 + eccentricity) - body.Radius;
+                    double altitudePe = initialSemiMajorAxis * (1 - eccentricity) - body.Radius;
+                    equivalentAltitude = altitudePe + 900 * Math.Pow(eccentricity, 0.6);
                 }
+                double initialDensity = body.atmDensityASL;
+                double boltzmannConstant = Math.Pow(1.380 * 10, -23);
+                double altitude = sma - body.Radius;
+                double gravityAsl = body.GeeASL;
+                double atmosphericMolarMass = body.atmosphereMolarMass;
+                double vesselArea = area;
+                if (vesselArea == 0)
+                {
+                    vesselArea = 1.0;
+                }
+
+                double vesselMass = mass;   // Kg
+                if (vesselMass == 0)
+                {
+                    vesselMass = 100.0; // Default is 100kg
+                }
+
+                equivalentAltitude = equivalentAltitude / 1000.0;
+
+                double molecularMass = 27 - 0.0012 * (equivalentAltitude - 200);
+                double f107Flux = SCSManager.FetchCurrentF107();
+                double geomagneticIndex = SCSManager.FetchCurrentAp();
+
+                double exothericTemperature = 900.0 + 2.5 * (f107Flux - 70.0) + 1.5 * geomagneticIndex;
+                double scaleHeight = exothericTemperature / molecularMass;
+                double atmosphericDensity = 6.0 * Math.Pow(10.0, -10.0) * Math.Pow(Math.E, -((equivalentAltitude - 175.0f) / scaleHeight));
+
+                double deltaPeriod = 3 * Math.PI * (initialSemiMajorAxis * atmosphericDensity) * (vesselArea * 2.2 / vesselMass); // Unitless
+                double initialPeriod = 2 * Math.PI * Math.Sqrt(Math.Pow(initialSemiMajorAxis, 3) / standardGravitationalParameter);
+                double finalPeriod = initialPeriod - deltaPeriod;
+                double finalSemiMajorAxis = Math.Pow(Math.Pow(finalPeriod / (2.0 * Math.PI), 2.0) * standardGravitationalParameter, 1.0 / 3.0);
+
+                double decayRateModifier = 0.0;
+                decayRateModifier = Settings.ReadDecayDifficulty();
+
+                decayRate = (initialSemiMajorAxis - finalSemiMajorAxis) * TimeWarp.CurrentRate * decayRateModifier;
             }
             else
             {
-                if (body.atmosphere == true)  // Atmospheric Drag // Disused for 1.1.0
+                if (!body.atmosphere) return decayRate;
+                double initialSemiMajorAxis = sma;
+                double maxInfluence = body.Radius * 1.5;
+
+                if (!(initialSemiMajorAxis < maxInfluence)) return decayRate;
+                double standardGravitationalParameter = body.gravParameter;
+                double equivalentAltitude = initialSemiMajorAxis - body.Radius;
+                //double eccentricity = eccentricity;
+
+                if (eccentricity > 0.085)
                 {
-                    double InitialSemiMajorAxis = SMA;
-                    double MaxInfluence = body.Radius * 1.5;
-
-                    if (InitialSemiMajorAxis < MaxInfluence)
-                    {
-                        double StandardGravitationalParameter = body.gravParameter;
-                        double EquivalentAltitude = (InitialSemiMajorAxis - body.Radius);
-                        double Eccentricity = eccentricity;
-
-                        if (Eccentricity > 0.085)
-                        {
-                            double AltitudeAp = (InitialSemiMajorAxis * (1 + Eccentricity) - body.Radius);
-                            double AltitudePe = (InitialSemiMajorAxis * (1 - Eccentricity) - body.Radius);
-                            EquivalentAltitude = (AltitudePe) + 900 * Math.Pow(Eccentricity, (double)0.6);
-                        }
-                        double InitialDensity = body.atmDensityASL;
-                        double BoltzmannConstant = Math.Pow(1.380 * 10, -23);
-                        double Altitude = SMA - body.Radius;
-                        double GravityASL = body.GeeASL;
-                        double AtmosphericMolarMass = body.atmosphereMolarMass;
-                        double VesselArea = area;
-                        if (VesselArea == 0)
-                        {
-                            VesselArea = 5.0;
-                        }
-
-                        double VesselMass = mass; ;   // Kg
-                        if (VesselMass == 0)
-                        {
-                            VesselMass = 1000.0; // Default is 100kg
-                        }
-
-                        EquivalentAltitude = EquivalentAltitude / 1000.0;
-
-                        double AtmosphericDensity = 1.020 * (Math.Pow(10, 7.0) * Math.Pow(((EquivalentAltitude + 70.0)), -7.172)); // Kg/m^3 // *1
-                        double DeltaPeriod = ((3 * Math.PI) * (InitialSemiMajorAxis * AtmosphericDensity) * ((VesselArea * 2.2) / VesselMass)); // Unitless
-                        double InitialPeriod = (2 * Math.PI * Math.Sqrt((Math.Pow(InitialSemiMajorAxis, (double)3)) / StandardGravitationalParameter));
-                        double FinalPeriod = InitialPeriod - DeltaPeriod;
-                        double FinalSemiMajorAxis = Math.Pow(((Math.Pow(((double)FinalPeriod / (double)(2.0 * Math.PI)), (double)2.0)) * (double)StandardGravitationalParameter), ((double)1.0 / (double)3.0));
-
-                        double DecayRateModifier = 0.0;
-                        DecayRateModifier = Settings.ReadDecayDifficulty();
-
-                        DecayRate = (InitialSemiMajorAxis - FinalSemiMajorAxis) * TimeWarp.CurrentRate * DecayRateModifier;
-                    }
+                    double altitudeAp = initialSemiMajorAxis * (1 + eccentricity) - body.Radius;
+                    double altitudePe = initialSemiMajorAxis * (1 - eccentricity) - body.Radius;
+                    equivalentAltitude = altitudePe + 900 * Math.Pow(eccentricity, 0.6);
                 }
+                double initialDensity = body.atmDensityASL;
+                double boltzmannConstant = Math.Pow(1.380 * 10, -23);
+                double altitude = sma - body.Radius;
+                double gravityAsl = body.GeeASL;
+                double atmosphericMolarMass = body.atmosphereMolarMass;
+                double vesselArea = area;
+                if (vesselArea == 0)
+                {
+                    vesselArea = 5.0;
+                }
+
+                double vesselMass = mass; ;   // Kg
+                if (vesselMass == 0)
+                {
+                    vesselMass = 1000.0; // Default is 100kg
+                }
+
+                equivalentAltitude = equivalentAltitude / 1000.0;
+
+                double atmosphericDensity = 1.020 * (Math.Pow(10, 7.0) * Math.Pow(equivalentAltitude + 70.0, -7.172)); // Kg/m^3 // *1
+                double deltaPeriod = 3 * Math.PI * (initialSemiMajorAxis * atmosphericDensity) * (vesselArea * 2.2 / vesselMass); // Unitless
+                double initialPeriod = 2 * Math.PI * Math.Sqrt(Math.Pow(initialSemiMajorAxis, 3) / standardGravitationalParameter);
+                double finalPeriod = initialPeriod - deltaPeriod;
+                double finalSemiMajorAxis = Math.Pow(Math.Pow(finalPeriod / (2.0 * Math.PI), 2.0) * standardGravitationalParameter, 1.0 / 3.0);
+
+                double decayRateModifier = 0.0;
+                decayRateModifier = Settings.ReadDecayDifficulty();
+
+                decayRate = (initialSemiMajorAxis - finalSemiMajorAxis) * TimeWarp.CurrentRate * decayRateModifier;
             }
 
-            return DecayRate;
+            return decayRate;
         } // 1.6.0
 
 
@@ -1523,140 +1373,140 @@ namespace WhitecatIndustries
 
         public static double DecayTimePredictionExponentialsVariables(Vessel vessel)
         {
-            double DaysUntilDecay = 0;
-            double InitialSemiMajorAxis = VesselData.FetchSMA(vessel);
+            double daysUntilDecay = 0;
+            double initialSemiMajorAxis = VesselData.FetchSMA(vessel);
             Orbit orbit = vessel.GetOrbitDriver().orbit;
             CelestialBody body = vessel.orbitDriver.orbit.referenceBody;
-            double InitialPeriod = Math.PI * 2.0 * (Math.Sqrt((InitialSemiMajorAxis * InitialSemiMajorAxis * InitialSemiMajorAxis) / body.gravParameter));
+            double initialPeriod = Math.PI * 2.0 * Math.Sqrt(initialSemiMajorAxis * initialSemiMajorAxis * initialSemiMajorAxis / body.gravParameter);
 
-            double EquivalentAltitude = (InitialSemiMajorAxis - body.Radius);
+            double equivalentAltitude = initialSemiMajorAxis - body.Radius;
             if (orbit.eccentricity > 0.085)
             {
-                double AltitudeAp = (InitialSemiMajorAxis * (1 - orbit.eccentricity) - body.Radius);
-                double AltitudePe = (InitialSemiMajorAxis * (1 + orbit.eccentricity) - body.Radius);
-                EquivalentAltitude = (AltitudePe) + 900 * Math.Pow(orbit.eccentricity, (double)0.6);
+                double altitudeAp = initialSemiMajorAxis * (1 - orbit.eccentricity) - body.Radius;
+                double altitudePe = initialSemiMajorAxis * (1 + orbit.eccentricity) - body.Radius;
+                equivalentAltitude = altitudePe + 900 * Math.Pow(orbit.eccentricity, 0.6);
             }
 
-            double BaseAltitude = body.atmosphereDepth / 1000;
+            double baseAltitude = body.atmosphereDepth / 1000;
 
-            double MolecularMass = 27 - 0.0012 * ((EquivalentAltitude / 1000) - 200);
-            double F107Flux = SCSManager.FetchAverageF107();
-            double GeomagneticIndex = SCSManager.FetchAverageAp();
+            double molecularMass = 27 - 0.0012 * (equivalentAltitude / 1000 - 200);
+            double f107Flux = SCSManager.FetchAverageF107();
+            double geomagneticIndex = SCSManager.FetchAverageAp();
 
-            double ExothericTemperature = 900.0 + (2.5 * (F107Flux - 70)) + (1.5 * GeomagneticIndex);
-            double ScaleHeight = ExothericTemperature / MolecularMass;
-            double AtmosphericDensity =0;
+            double exothericTemperature = 900.0 + 2.5 * (f107Flux - 70) + 1.5 * geomagneticIndex;
+            double scaleHeight = exothericTemperature / molecularMass;
+            double atmosphericDensity =0;
 
             if (Settings.ReadRD() == false)
             {
-                AtmosphericDensity = 1.020 * Math.Pow(10.0, 7.0) * Math.Pow(EquivalentAltitude / 1000.0 + 70.0, -7.172); // 1.4.2
+                atmosphericDensity = 1.020 * Math.Pow(10.0, 7.0) * Math.Pow(equivalentAltitude / 1000.0 + 70.0, -7.172); // 1.4.2
             }
-            else if (Settings.ReadRD() == true)
+            else if (Settings.ReadRD())
             {
-                AtmosphericDensity = (6 * (Math.Pow((10), -10)) * Math.Pow(Math.E, -(((EquivalentAltitude / 1000) - 175.0f) / ScaleHeight)));
+                atmosphericDensity = 6 * Math.Pow(10, -10) * Math.Pow(Math.E, -((equivalentAltitude / 1000 - 175.0f) / scaleHeight));
             }
 
-            double Beta = 1.0 / ScaleHeight;
+            double beta = 1.0 / scaleHeight;
 
-            double VesselArea = VesselData.FetchArea(vessel);
-            if (VesselArea == 0)
+            double vesselArea = VesselData.FetchArea(vessel);
+            if (vesselArea == 0)
             {
-                VesselArea = 5.0;
+                vesselArea = 5.0;
             }
 
-            double VesselMass = VesselData.FetchMass(vessel);   // Kg
-            if (VesselMass == 0)
+            double vesselMass = VesselData.FetchMass(vessel);   // Kg
+            if (vesselMass == 0)
             {
-                VesselMass = 1000.0;
+                vesselMass = 1000.0;
             }
 
-            EquivalentAltitude = EquivalentAltitude + body.Radius;
+            equivalentAltitude = equivalentAltitude + body.Radius;
 
 
-            double Time1 = ((InitialPeriod / (60.0 * 60.0)) / 4.0 * Math.PI) * (((2.0 * Beta * EquivalentAltitude) + 1.0) / (AtmosphericDensity * (Beta * Beta) * (EquivalentAltitude * EquivalentAltitude * EquivalentAltitude)));
-            double Time2 = Time1 * (VesselMass / (2.2 * VesselArea)) * (1 - Math.Pow(Math.E, (Beta * (BaseAltitude - ((EquivalentAltitude - body.Radius) / 1000)))));
+            double time1 = initialPeriod / (60.0 * 60.0) / 4.0 * Math.PI * ((2.0 * beta * equivalentAltitude + 1.0) / (atmosphericDensity * (beta * beta) * (equivalentAltitude * equivalentAltitude * equivalentAltitude)));
+            double time2 = time1 * (vesselMass / (2.2 * vesselArea)) * (1 - Math.Pow(Math.E, beta * (baseAltitude - (equivalentAltitude - body.Radius) / 1000)));
 
-            DaysUntilDecay = Time2;
+            daysUntilDecay = time2;
 
-            return DaysUntilDecay;
+            return daysUntilDecay;
         } // 1.4.0
 
-        public static double DecayTimePredictionEditor(double area, double mass, double SMA, double eccentricity, CelestialBody body)
+        public static double DecayTimePredictionEditor(double area, double mass, double sma, double eccentricity, CelestialBody body)
         {
-            double DaysUntilDecay = 0;
-            double InitialSemiMajorAxis = SMA;
+            double daysUntilDecay = 0;
+            double initialSemiMajorAxis = sma;
 
-            double InitialPeriod = Math.PI * 2.0 * (Math.Sqrt((InitialSemiMajorAxis * InitialSemiMajorAxis * InitialSemiMajorAxis) / body.gravParameter));
+            double initialPeriod = Math.PI * 2.0 * Math.Sqrt(initialSemiMajorAxis * initialSemiMajorAxis * initialSemiMajorAxis / body.gravParameter);
 
-            double EquivalentAltitude = (InitialSemiMajorAxis - body.Radius);
+            double equivalentAltitude = initialSemiMajorAxis - body.Radius;
             if (eccentricity > 0.085)
             {
-                double AltitudeAp = (InitialSemiMajorAxis * (1 - eccentricity) - body.Radius);
-                double AltitudePe = (InitialSemiMajorAxis * (1 + eccentricity) - body.Radius);
-                EquivalentAltitude = (AltitudePe) + 900 * Math.Pow(eccentricity, (double)0.6);
+                double altitudeAp = initialSemiMajorAxis * (1 - eccentricity) - body.Radius;
+                double altitudePe = initialSemiMajorAxis * (1 + eccentricity) - body.Radius;
+                equivalentAltitude = altitudePe + 900 * Math.Pow(eccentricity, 0.6);
             }
 
-            double BaseAltitude = body.atmosphereDepth / 1000;
+            double baseAltitude = body.atmosphereDepth / 1000;
 
-            double MolecularMass = 27 - 0.0012 * ((EquivalentAltitude / 1000) - 200);
-            double F107Flux = SCSManager.FetchAverageF107();
-            double GeomagneticIndex = SCSManager.FetchAverageAp();
+            double molecularMass = 27 - 0.0012 * (equivalentAltitude / 1000 - 200);
+            double f107Flux = SCSManager.FetchAverageF107();
+            double geomagneticIndex = SCSManager.FetchAverageAp();
 
-            double ExothericTemperature = 900.0 + (2.5 * (F107Flux - 70)) + (1.5 * GeomagneticIndex);
-            double ScaleHeight = ExothericTemperature / MolecularMass;
-            double AtmosphericDensity =0;
+            double exothericTemperature = 900.0 + 2.5 * (f107Flux - 70) + 1.5 * geomagneticIndex;
+            double scaleHeight = exothericTemperature / molecularMass;
+            double atmosphericDensity =0;
 
             if (Settings.ReadRD() == false)
             {
-                AtmosphericDensity = 1.020 * Math.Pow(10.0, 7.0) * Math.Pow(EquivalentAltitude / 1000.0 + 70.0, -7.172); // 1.4.2
+                atmosphericDensity = 1.020 * Math.Pow(10.0, 7.0) * Math.Pow(equivalentAltitude / 1000.0 + 70.0, -7.172); // 1.4.2
             }
-            else if (Settings.ReadRD() == true)
+            else if (Settings.ReadRD())
             {
-                AtmosphericDensity = (6 * (Math.Pow((10), -10)) * Math.Pow(Math.E, -(((EquivalentAltitude / 1000) - 175.0f) / ScaleHeight)));
+                atmosphericDensity = 6 * Math.Pow(10, -10) * Math.Pow(Math.E, -((equivalentAltitude / 1000 - 175.0f) / scaleHeight));
             }
 
-            double Beta = 1.0 / ScaleHeight;
+            double beta = 1.0 / scaleHeight;
 
-            double VesselArea = area;
-            if (VesselArea == 0)
+            double vesselArea = area;
+            if (vesselArea == 0)
             {
-                VesselArea = 5.0;
+                vesselArea = 5.0;
             }
 
-            double VesselMass = mass;   // Kg
-            if (VesselMass == 0)
+            double vesselMass = mass;   // Kg
+            if (vesselMass == 0)
             {
-                VesselMass = 1000.0;
+                vesselMass = 1000.0;
             }
 
-            EquivalentAltitude = EquivalentAltitude + body.Radius;
+            equivalentAltitude = equivalentAltitude + body.Radius;
 
 
-            double Time1 = ((InitialPeriod / (60.0 * 60.0)) / 4.0 * Math.PI) * (((2.0 * Beta * EquivalentAltitude) + 1.0) / (AtmosphericDensity * (Beta * Beta) * (EquivalentAltitude * EquivalentAltitude * EquivalentAltitude)));
-            double Time2 = Time1 * (VesselMass / (2.2 * VesselArea)) * (1 - Math.Pow(Math.E, (Beta * (BaseAltitude - ((EquivalentAltitude - body.Radius) / 1000)))));
+            double time1 = initialPeriod / (60.0 * 60.0) / 4.0 * Math.PI * ((2.0 * beta * equivalentAltitude + 1.0) / (atmosphericDensity * (beta * beta) * (equivalentAltitude * equivalentAltitude * equivalentAltitude)));
+            double time2 = time1 * (vesselMass / (2.2 * vesselArea)) * (1 - Math.Pow(Math.E, beta * (baseAltitude - (equivalentAltitude - body.Radius) / 1000)));
 
-            DaysUntilDecay = Time2;
+            daysUntilDecay = time2;
 
-            return DaysUntilDecay;
+            return daysUntilDecay;
         }
 
         public static double DecayTimePredictionLinearVariables(Vessel vessel)
         {
-            double DecayTimeInSeconds = 0.0;
+            double decayTimeInSeconds = 0.0;
 
-            double DecayRateVariables = Math.Abs(DecayManager.DecayRateRadiationPressure(vessel)) + Math.Abs(DecayManager.DecayRateYarkovskyEffect(vessel)); //+ Math.Abs(DecayRateGravitationalPertubation(vessel));
-            double TimewarpRate = 0;
+            double decayRateVariables = Math.Abs(DecayManager.DecayRateRadiationPressure(vessel)) + Math.Abs(DecayManager.DecayRateYarkovskyEffect(vessel)); //+ Math.Abs(DecayRateGravitationalPertubation(vessel));
+            double timewarpRate = 0;
             if (TimeWarp.CurrentRate == 0)
             {
-                TimewarpRate = 1;
+                timewarpRate = 1;
             }
             else
             {
-                TimewarpRate = TimeWarp.CurrentRate;
+                timewarpRate = TimeWarp.CurrentRate;
             }
-            double TimeUntilImpact = Math.Abs((VesselData.FetchSMA(vessel) - vessel.orbitDriver.orbit.referenceBody.Radius) / (DecayRateVariables/TimewarpRate));
-            DecayTimeInSeconds = TimeUntilImpact;
-            return DecayTimeInSeconds;
+            double timeUntilImpact = Math.Abs((VesselData.FetchSMA(vessel) - vessel.orbitDriver.orbit.referenceBody.Radius) / (decayRateVariables/timewarpRate));
+            decayTimeInSeconds = timeUntilImpact;
+            return decayTimeInSeconds;
         }
 
         #endregion

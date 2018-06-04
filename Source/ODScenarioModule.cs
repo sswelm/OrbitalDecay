@@ -1,12 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UnityEngine;
-namespace WhitecatIndustries
+
+namespace WhitecatIndustries.Source
 {
     [KSPScenario(ScenarioCreationOptions.AddToAllGames, GameScenes.EDITOR, GameScenes.FLIGHT, GameScenes.TRACKSTATION, GameScenes.SPACECENTER)]
-    class ODScenarioModule : ScenarioModule
+    internal class ODScenarioModule : ScenarioModule
     {
         public override void OnSave(ConfigNode node)
         {

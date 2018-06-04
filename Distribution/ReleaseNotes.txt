@@ -16,3 +16,11 @@ Features:
 - Added QuickLoad / QuickSave handling 
 - Began Wiki creation 
 - Fixed multiple bugs and added other minor requests
+
+***Version  1.1.0***
+
+Features:
+
+- UI For KSP 1.1, active vessel decay. 
+- Settings to adjust decay rates, and filter UI menus. 
+- RSS support
