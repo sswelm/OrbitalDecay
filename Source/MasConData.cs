@@ -31,11 +31,12 @@ namespace WhitecatIndustries.Source
 {
     public class MasConData : MonoBehaviour
     {
-        public static string FilePath = KSPUtil.ApplicationRootPath + "GameData/WhitecatIndustries/Orbital Decay/Plugins/PluginData/MasConData.cfg";
+        public static string FilePath;
         public static ConfigNode GMSData;
 
         public static void LoadData()
         {
+            FilePath = KSPUtil.ApplicationRootPath + "GameData/WhitecatIndustries/OrbitalDecay/Plugins/PluginData/MasConData.cfg";
             GMSData = ConfigNode.Load(FilePath);
         }
 

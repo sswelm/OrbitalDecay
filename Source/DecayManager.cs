@@ -166,7 +166,7 @@ namespace WhitecatIndustries.Source
 
             VesselData.VesselInformation.ClearNodes();
             print("WhitecatIndustries - Orbital Decay - Vessel Information lost OnQuickLoadUpdate");
-            string filePath = KSPUtil.ApplicationRootPath + "GameData/WhitecatIndustries/Orbital Decay/Plugins/PluginData/VesselData.cfg";
+            string filePath = KSPUtil.ApplicationRootPath + "GameData/WhitecatIndustries/OrbitalDecay/Plugins/PluginData/VesselData.cfg";
             ConfigNode fileM = new ConfigNode();
             ConfigNode fileN = new ConfigNode("VESSEL");
             fileN.AddValue("name", "WhitecatsDummyVessel");

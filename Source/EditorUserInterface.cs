@@ -14,22 +14,27 @@ namespace WhitecatIndustries.Source
         private static Rect MainwindowPosition = new Rect(0, 0, 300, 400);
         private static Rect DecayBreakdownwindowPosition = new Rect(0, 0, 450, 150);
         private static Rect NBodyManagerwindowPosition = new Rect(0, 0, 450, 150);
-        private static GUIStyle windowStyle = new GUIStyle(HighLogic.Skin.window);
+        private static GUIStyle windowStyle;
         private static Color tabUnselectedColor = new Color(0.0f, 0.0f, 0.0f);
         private static Color tabSelectedColor = new Color(0.0f, 0.0f, 0.0f);
         private static Color tabUnselectedTextColor = new Color(0.0f, 0.0f, 0.0f);
         private static Color tabSelectedTextColor = new Color(0.0f, 0.0f, 0.0f);
-        private GUISkin skins = HighLogic.Skin;
-        private int id = Guid.NewGuid().GetHashCode();
+        private GUISkin skins;
+        private int id;
         public static ApplicationLauncherButton ToolbarButton;
         public bool Visible;
 
         public static Texture launcher_icon;
         private float AltitudeValue = 70000f;
-        private CelestialBody ReferenceBody = FlightGlobals.GetHomeBody();
+        private CelestialBody ReferenceBody;
 
         private void Awake()
         {
+            id = Guid.NewGuid().GetHashCode();
+            windowStyle = new GUIStyle(HighLogic.Skin.window);
+            skins = HighLogic.Skin;
+            //ReferenceBody = FlightGlobals.GetHomeBody();
+
             GameEvents.onGUIApplicationLauncherReady.Remove(ReadyEvent);
             GameEvents.onGUIApplicationLauncherReady.Add(ReadyEvent);
             GameEvents.onGUIApplicationLauncherDestroyed.Remove(DestroyEvent);
@@ -43,7 +48,7 @@ namespace WhitecatIndustries.Source
             if (ApplicationLauncher.Ready && ToolbarButton == null)
             {
                 ApplicationLauncher.AppScenes Scenes = ApplicationLauncher.AppScenes.VAB | ApplicationLauncher.AppScenes.SPH;
-                launcher_icon = GameDatabase.Instance.GetTexture("WhitecatIndustries/Orbital Decay/Icon/IconToolbar", false);
+                launcher_icon = GameDatabase.Instance.GetTexture("WhitecatIndustries/OrbitalDecay/Icon/IconToolbar", false);
                 ToolbarButton = ApplicationLauncher.Instance.AddModApplication(GuiOn, GuiOff, null, null, null, null, Scenes, launcher_icon);
             }
         }

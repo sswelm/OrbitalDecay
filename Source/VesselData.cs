@@ -34,8 +34,8 @@ namespace WhitecatIndustries.Source
     public class VesselData : MonoBehaviour
     {
         public static ConfigNode VesselInformation = new ConfigNode();
-        public static string FilePath = KSPUtil.ApplicationRootPath + "GameData/WhitecatIndustries/Orbital Decay/Plugins/PluginData/VesselData.cfg";
-        public static ConfigNode File = ConfigNode.Load(FilePath);
+        public static string FilePath;
+        public static ConfigNode File;
 
         public static double EndSceneWaitTime = 0;
         public static double StartSceneWaitTime = 0;
@@ -49,6 +49,10 @@ namespace WhitecatIndustries.Source
 
         public void Awake()
         {
+            FilePath = KSPUtil.ApplicationRootPath +
+                       "GameData/WhitecatIndustries/OrbitalDecay/Plugins/PluginData/VesselData.cfg";
+            File = ConfigNode.Load(FilePath);
+
           /*  VesselInformation.ClearNodes();
 
             if (HighLogic.LoadedSceneIsGame && (HighLogic.LoadedScene != GameScenes.LOADING || HighLogic.LoadedScene != GameScenes.LOADINGBUFFER))
@@ -80,12 +84,7 @@ namespace WhitecatIndustries.Source
             }*/
             print("WhitecatIndustries - Orbital Decay - Loaded vessel data.");
         }
-
-
-
-
-
-       
+    
         public void FixedUpdate()
         {
             if (Time.timeSinceLevelLoad > 1 && VesselsLoaded)

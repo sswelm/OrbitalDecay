@@ -30,20 +30,23 @@ namespace WhitecatIndustries.Source
     [KSPAddon(KSPAddon.Startup.EveryScene,false)]
     public class Settings : MonoBehaviour
     {
-        public static string FilePath = KSPUtil.ApplicationRootPath + "GameData/WhitecatIndustries/Orbital Decay/Plugins/PluginData/Settings.cfg";
+        public static string FilePath;
         public static ConfigNode SettingData = new ConfigNode();
-        public static ConfigNode settings = ConfigNode.Load(FilePath);
+        internal static ConfigNode SettingsNode;
 
         public void Start()
         {
+            FilePath = KSPUtil.ApplicationRootPath +
+                       "GameData/WhitecatIndustries/OrbitalDecay/Plugins/PluginData/Settings.cfg";
             CheckStockSettings();
 
             SettingData.ClearData();
-            settings = ConfigNode.Load(FilePath);
-            foreach (ConfigNode item in settings.nodes)
+            SettingsNode = ConfigNode.Load(FilePath);
+            foreach (ConfigNode item in SettingsNode.nodes)
             {
                 SettingData.AddNode(item);
             }
+            UserInterface.NBodyStepsContainer = float.Parse(Settings.ReadNBCC().ToString());
         }
 
         public void CheckStockSettings() // 1.6.0 Stock give me back my decaying orbits!!
@@ -59,7 +62,7 @@ namespace WhitecatIndustries.Source
 
         public void OnDestroy()
         {
-            settings.ClearData();
+            SettingsNode.ClearData();
             SettingData.Save(FilePath);
         }
 

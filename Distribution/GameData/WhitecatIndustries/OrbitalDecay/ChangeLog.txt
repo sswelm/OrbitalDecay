@@ -1,6 +1,11 @@
 ﻿OrbitalDecay Change Log
 
 Version 1.6.1
+ - Bug fixes for bad path names to config files after Project reorg
+ - Clean up disallowed constructor var assignments due to Unity version change.
+ - Correct url errors in version file
+
+Version 1.6.1
  - Mod Adopted by Papa_Joe  
     See post: https://forum.kerbalspaceprogram.com/index.php?/topic/116818-113-orbital-decay-v152-17072016-total-overhaul/&do=findComment&comment=3392354
  - Recompiled for KSP 1.4.  Revised versioning to reflect incorporation of 1.6.0 features

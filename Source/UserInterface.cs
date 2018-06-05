@@ -64,7 +64,7 @@ namespace WhitecatIndustries.Source
         private float MultiplierValue = 5.0f;
         private float MultiplierValue2 = 5.0f;
 
-        private float NBodyStepsContainer = float.Parse(Settings.ReadNBCC().ToString());
+        internal static float NBodyStepsContainer;
 
         private Vessel subwindowVessel = new Vessel();
 
@@ -83,7 +83,7 @@ namespace WhitecatIndustries.Source
             if (ApplicationLauncher.Ready && ToolbarButton == null)
             {
                 ApplicationLauncher.AppScenes Scenes = ApplicationLauncher.AppScenes.TRACKSTATION | ApplicationLauncher.AppScenes.SPACECENTER | ApplicationLauncher.AppScenes.FLIGHT | ApplicationLauncher.AppScenes.MAPVIEW;
-                launcher_icon = GameDatabase.Instance.GetTexture("WhitecatIndustries/Orbital Decay/Icon/IconToolbar", false);
+                launcher_icon = GameDatabase.Instance.GetTexture("WhitecatIndustries/OrbitalDecay/Icon/IconToolbar", false);
                 ToolbarButton = ApplicationLauncher.Instance.AddModApplication(GuiOn, GuiOff, null, null, null, null, Scenes, launcher_icon);
             }
         }
