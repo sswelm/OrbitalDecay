@@ -32,17 +32,17 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
-      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\SteamApps\common\Kerbal Space Program\KSP_x64_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <HintPath>D:\Games\SteamLibrary\steamapps\common\Kerbal Space Program\KSP_x64_Data\Managed\Assembly-CSharp.dll</HintPath>
     </Reference>
     <Reference Include="SolarCycleSimulator">
       <HintPath>..\SolarCycleSimulator\Distribution\GameData\WhitecatIndustries\SolarCycleSimulator\Plugins\SolarCycleSimulator.dll</HintPath>
     </Reference>
     <Reference Include="System.Core" />
     <Reference Include="UnityEngine">
-      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\SteamApps\common\Kerbal Space Program\KSP_x64_Data\Managed\UnityEngine.dll</HintPath>
+      <HintPath>D:\Games\SteamLibrary\steamapps\common\Kerbal Space Program\KSP_x64_Data\Managed\UnityEngine.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.UI">
-      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\SteamApps\common\Kerbal Space Program\KSP_x64_Data\Managed\UnityEngine.UI.dll</HintPath>
+      <HintPath>D:\Games\SteamLibrary\steamapps\common\Kerbal Space Program\KSP_x64_Data\Managed\UnityEngine.UI.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -66,8 +66,14 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\ChangeLog.txt" />
+    <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\Icon\Icon_Debris.png" />
+    <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\Icon\Icon_Ship.png" />
+    <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\Icon\Icon_Relay.png" />
+    <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\Icon\Icon_Spaceobject.png" />
+    <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\Icon\Icon_Station.png" />
+    <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\Icon\Icon_Toolbar.png" />
+    <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\Icon\Icon_Unmanned.png" />
     <Content Include="Distribution\OrbitalDecay1.6.0%28NbodyTests%29.dll" />
-    <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\Icon\IconToolbar.png" />
     <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\License.txt" />
     <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\plugins\OrbitalDecay.dll" />
     <Content Include="Distribution\GameData\WhitecatIndustries\OrbitalDecay\ReleaseNotes.txt" />
@@ -105,20 +111,20 @@ set /p DIST_DIR=&lt;"$(ProjectDir)LocalDev\dist_dir.txt"
 
 @echo distributing $(Targetname) files...
 copy /Y "$(TargetPath)" "$(ProjectDir)Distribution\GameData\WhitecatIndustries\$(Targetname)\Plugins\"
-xcopy /E /Y "$(ProjectDir)Distribution\GameData\WhitecatIndustries\$(Targetname)" "%25KSP_DIR%25\GameData\WhitecatIndustries\$(Targetname)"
+xcopy /E /Y /I "$(ProjectDir)Distribution\GameData\WhitecatIndustries\$(Targetname)" "%25KSP_DIR%25\GameData\WhitecatIndustries\$(Targetname)"
 
 @echo building $(Targetname).dll.mdb file...
 cd "$(TargetDir)"
 call "%25PDB2MDB_EXE%25" $(Targetname).dll
 
-xcopy /E /Y "$(TargetDir)$(Targetname).dll.mdb" "%25KSP_DIR%25\GameData\WhitecatIndustries\$(Targetname)\Plugins\"
+xcopy /E /Y /I "$(TargetDir)$(Targetname).dll.mdb" "%25KSP_DIR%25\GameData\WhitecatIndustries\$(Targetname)\Plugins\"
 
 @echo packaging files...
 rem if exist "D:\KSP\Mods\PJS\Releases\$(Targetname)\Build\$(Targetname)*.zip" del "D:\KSP\Mods\PJS\Releases\$(Targetname)\Build\$(Targetname)*.zip"
 call "%25ZA_DIR%25\7za.exe" a -tzip -r  "%25DIST_DIR%25\$(Targetname).@(VersionNumber)_%25DATE:~4,2%25%25DATE:~7,2%25%25DATE:~10,4%25.zip" "$(ProjectDir)Distribution\*.*"
 
 @echo Deploy $(Targetname) Distribution files to test env:  %25KSP_DIR%25\WhitecatIndustries\GameData...
-xcopy /E /Y "$(SolutionDir)$(ProjectName)\Distribution\GameData" "%25KSP_DIR%25\WhitecatIndustries\GameData"
+xcopy /E /Y  /I "$(SolutionDir)$(ProjectName)\Distribution\GameData" "%25KSP_DIR%25\WhitecatIndustries\GameData"
 copy /Y "$(TargetDir)$(Targetname).pdb" "%25KSP_DIR%25\GameData\WhitecatIndustries\$(Targetname)\Plugins\"
 
 echo ...
