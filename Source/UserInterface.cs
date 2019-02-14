@@ -83,7 +83,7 @@ namespace WhitecatIndustries.Source
             if (ApplicationLauncher.Ready && ToolbarButton == null)
             {
                 ApplicationLauncher.AppScenes Scenes = ApplicationLauncher.AppScenes.TRACKSTATION | ApplicationLauncher.AppScenes.SPACECENTER | ApplicationLauncher.AppScenes.FLIGHT | ApplicationLauncher.AppScenes.MAPVIEW;
-                launcher_icon = GameDatabase.Instance.GetTexture("WhitecatIndustries/OrbitalDecay/Icon/IconToolbar", false);
+                launcher_icon = GameDatabase.Instance.GetTexture("WhitecatIndustries/OrbitalDecay/Icon/toolbaricon", false);
                 ToolbarButton = ApplicationLauncher.Instance.AddModApplication(GuiOn, GuiOff, null, null, null, null, Scenes, launcher_icon);
             }
         }
@@ -189,7 +189,7 @@ namespace WhitecatIndustries.Source
             GUILayout.Space(3);
             GUILayout.BeginHorizontal();
 
-            if (GUILayout.Button(GameDatabase.Instance.GetTexture("Squad/PartList/SimpleIcons/R&D_node_icon_unmannedtech", false)))
+            if (GUILayout.Button(GameDatabase.Instance.GetTexture("WhitecatIndustries/OrbitalDecay/Icon/unmanned", false)))
             {
                 if (FilterTypes.Contains(VesselType.Probe))
                 {
@@ -203,7 +203,7 @@ namespace WhitecatIndustries.Source
             }
 
             GUILayout.Space(3);
-            if (GUILayout.Button(GameDatabase.Instance.GetTexture("Squad/PartList/SimpleIcons/R&D_node_icon_advunmanned", false)))
+            if (GUILayout.Button(GameDatabase.Instance.GetTexture("WhitecatIndustries/OrbitalDecay/Icon/relay", false)))
             {
                 if (FilterTypes.Contains(VesselType.Relay))
                 {
@@ -218,7 +218,7 @@ namespace WhitecatIndustries.Source
 
             GUILayout.Space(3);
 
-            if (GUILayout.Button(GameDatabase.Instance.GetTexture("Squad/PartList/SimpleIcons/RDicon_commandmodules", false)))
+            if (GUILayout.Button(GameDatabase.Instance.GetTexture("WhitecatIndustries/OrbitalDecay/Icon/mannedcommand", false)))
             {
                 if (FilterTypes.Contains(VesselType.Ship))
                 {
@@ -233,7 +233,7 @@ namespace WhitecatIndustries.Source
 
             GUILayout.Space(3);
 
-            if (GUILayout.Button(GameDatabase.Instance.GetTexture("Squad/PartList/SimpleIcons/R&D_node_icon_specializedconstruction", false)))
+            if (GUILayout.Button(GameDatabase.Instance.GetTexture("WhitecatIndustries/OrbitalDecay/Icon/station", false)))
             {
                 if (FilterTypes.Contains(VesselType.Station))
                 {
@@ -248,7 +248,7 @@ namespace WhitecatIndustries.Source
 
             GUILayout.Space(3);
 
-            if (GUILayout.Button(GameDatabase.Instance.GetTexture("Squad/PartList/SimpleIcons/RDicon_telescope", false)))
+            if (GUILayout.Button(GameDatabase.Instance.GetTexture("WhitecatIndustries/OrbitalDecay/Icon/spaceobject", false)))
             {
                 if (FilterTypes.Contains(VesselType.SpaceObject))
                 {
@@ -273,7 +273,7 @@ namespace WhitecatIndustries.Source
 
             GUILayout.Space(3);
 
-            if (GUILayout.Button(GameDatabase.Instance.GetTexture("Squad/PartList/SimpleIcons/R&D_node_icon_composites", false)))
+            if (GUILayout.Button(GameDatabase.Instance.GetTexture("WhitecatIndustries/OrbitalDecay/Icon/debris", false)))
             {
                 if (FilterTypes.Contains(VesselType.Debris))
                 {
