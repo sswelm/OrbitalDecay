@@ -1,5 +1,9 @@
 ﻿OrbitalDecay Change Log
 
+Version 1.6.1.2
+ - Changed icons to reflect their function more accurately
+ - Recompiled for KSP 1.6.1
+
 Version 1.6.1.1
  - Bug fixes for bad path names to config files after Project reorg
  - Clean up disallowed constructor var assignments due to Unity version change.
