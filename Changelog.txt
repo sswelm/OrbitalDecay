@@ -19,3 +19,5 @@ Changelog
 	Fixed calculations in editor for the utilities window
 	Made window in editor scrollable, so it won't use the entire screen.
 	Some minor editing of editor window, mainly removing unnecessary lines
+	In editor, made initial position to the right of the part list
+	In editor, only show fuel resources for which there are engins onboard

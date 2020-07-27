@@ -640,7 +640,7 @@ namespace WhitecatIndustries.Source
             double finalSemiMajorAxis = Math.Pow(Math.Pow(finalPeriod / (2 * Math.PI), 2.0) * standardGravitationalParameter, 1.0 / 3.0);
             double decayValue = initialSemiMajorAxis - finalSemiMajorAxis;
 
-            double multipliers = double.Parse(TimeWarp.CurrentRate.ToString("F5")) * Settings.ReadDecayDifficulty();
+            double multipliers = TimeWarp.CurrentRate * Settings.ReadDecayDifficulty();
 
             VesselData.UpdateVesselSMA(vessel, initialSemiMajorAxis - decayValue * multipliers);
             VesselData.UpdateVesselLAN(vessel, VesselData.FetchLAN(vessel));
@@ -704,7 +704,7 @@ namespace WhitecatIndustries.Source
             double finalPeriod = initialPeriod - deltaPeriod;
             double finalSemiMajorAxis = Math.Pow(Math.Pow(finalPeriod / (2 * Math.PI), 2.0) * standardGravitationalParameter, 1.0 / 3.0);
             double decayValue = initialSemiMajorAxis - finalSemiMajorAxis;
-            double multipliers = double.Parse(TimeWarp.CurrentRate.ToString("F5")) * Settings.ReadDecayDifficulty();
+            double multipliers = TimeWarp.CurrentRate * Settings.ReadDecayDifficulty();
 
             VesselData.UpdateVesselSMA(vessel, initialSemiMajorAxis - decayValue * multipliers);
             VesselData.UpdateVesselLAN(vessel, VesselData.FetchLAN(vessel));

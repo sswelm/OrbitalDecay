@@ -13,7 +13,7 @@ namespace WhitecatIndustries.Source
         const int WINWIDTH = 300;
         //private static int currentTab;
         private static string[] tabs = { "Orbital Decay Utilities" };
-        private static Rect MainwindowPosition = new Rect(0, 0, WINWIDTH+40, 500);
+        private static Rect MainwindowPosition = new Rect(250, 0, WINWIDTH+40, 500);
         //private static Rect DecayBreakdownwindowPosition = new Rect(0, 0, 450, 150);
         //private static Rect NBodyManagerwindowPosition = new Rect(0, 0, 450, 150);
         private static GUIStyle windowStyle;
@@ -25,6 +25,7 @@ namespace WhitecatIndustries.Source
         private int id;
 
         private float AltitudeValue = 70000f;
+        float MaxDisplayValue = 2100000;
         private CelestialBody ReferenceBody;
 
         private void Awake()
@@ -117,6 +118,15 @@ namespace WhitecatIndustries.Source
             
         }
 
+        void SetMaxDisplayValue(CelestialBody ReferenceBody)
+        {
+            MaxDisplayValue = (float)ReferenceBody.atmosphereDepth * 30f;
+            if (ReferenceBody == Sun.Instance.sun)
+            {
+                MaxDisplayValue = (float)ReferenceBody.atmosphereDepth * 100000f;
+            }
+        }
+
         public void InformationTab()
         {
             double VesselMass = CalculateMass();
@@ -161,21 +171,19 @@ namespace WhitecatIndustries.Source
                     if (GUILayout.Button(body.name, GUILayout.Width(WINWIDTH)))
                     {
                         ReferenceBody = body;
+                        SetMaxDisplayValue(ReferenceBody);
+                        AltitudeValue = Math.Max((float)ReferenceBody.atmosphereDepth, AltitudeValue);
+                        AltitudeValue = Math.Min(AltitudeValue, MaxDisplayValue);
                     }
                     GUILayout.EndHorizontal();
                     GUILayout.Space(2);
                 }
             }
 
-            float MaxDisplayValue = float.Parse(ReferenceBody.atmosphereDepth.ToString()) * 30f;
-            if (ReferenceBody == Sun.Instance.sun)
-            {
-                MaxDisplayValue = float.Parse(ReferenceBody.atmosphereDepth.ToString()) * 100000f;
-            }
             GUILayout.Space(2);
             GUILayout.Label("Reference Altitude:");
             GUILayout.Space(2);
-            AltitudeValue = GUILayout.HorizontalSlider(AltitudeValue, float.Parse(ReferenceBody.atmosphereDepth.ToString()), MaxDisplayValue);
+            AltitudeValue = GUILayout.HorizontalSlider(AltitudeValue, (float)ReferenceBody.atmosphereDepth, MaxDisplayValue);
             GUILayout.Space(2);
             GUILayout.Label("Altitude set: " + (AltitudeValue / 1000).ToString("F1") + "Km.");
             GUILayout.Space(2);
@@ -199,6 +207,7 @@ namespace WhitecatIndustries.Source
             GUILayout.Label("Useable Resources: ");
             // GUILayout.BeginHorizontal();
 
+#if true
             Dictionary<string, double> ResourceQuantites = new Dictionary<string, double>();
             //   double tempHold = 0;
             for (int i = 0; i < EditorLogic.SortedShipList.Count; i++)
@@ -214,10 +223,11 @@ namespace WhitecatIndustries.Source
                     //GUILayout.Label(res.resourceName + ": " + res.maxAmount);
                 }
             }
-
-            foreach (var resource in ResourceQuantites)
+#endif
+            GetMaximumPossibleLifetime();
+            foreach (var resource in AllUsableFuels)
             {
-                GUILayout.Label(resource.Key + " : " + resource.Value.ToString("F0"));
+                GUILayout.Label(resource.Key + " : " + ResourceQuantites[resource.Key].ToString("F0"));
             }
 
 
@@ -264,6 +274,8 @@ namespace WhitecatIndustries.Source
             return Total;
         }
 
+        Dictionary<string, double> AllUsableFuels = new Dictionary<string, double>();
+
         public double GetMaximumPossibleLifetime()
         {
             double Lifetime = 0;
@@ -285,6 +297,7 @@ namespace WhitecatIndustries.Source
             {
                 HoursInDay = 6.0;
             }
+                AllUsableFuels.Clear();
 
             var allResources = GetResources(constructParts);
             for (int pi = 0; pi < constructParts.Length; pi++)
@@ -314,6 +327,9 @@ namespace WhitecatIndustries.Source
                                     UsableFuels.Add(pro.name, pro.totalResourceCapacity);
                                     FuelRatios.Add(pro.name, pro.ratio);
                                 }
+                                if (!AllUsableFuels.ContainsKey(pro.name))
+                                    AllUsableFuels.Add(pro.name, pro.totalResourceCapacity);
+
                                 double ResEff = 1.0 / engEfficiency;
 
                                 Lifetime = Lifetime + allResources[pro.name] /
@@ -341,6 +357,9 @@ namespace WhitecatIndustries.Source
                                     UsableFuels.Add(pro.name, pro.totalResourceCapacity);
                                     FuelRatios.Add(pro.name, pro.ratio);
                                 }
+                                if (!AllUsableFuels.ContainsKey(pro.name))
+                                    AllUsableFuels.Add(pro.name, pro.totalResourceCapacity);
+
                                 double ResEff = 1.0 / rcsEfficiency;
 
                                 Lifetime = Lifetime + allResources[pro.name] /
@@ -353,7 +372,6 @@ namespace WhitecatIndustries.Source
 
                 }
             }
-
             return Lifetime;
         }
 
